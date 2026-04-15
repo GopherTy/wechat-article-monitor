@@ -7,6 +7,7 @@ import type { DebugAsset } from './debug';
 import type { HtmlAsset } from './html';
 import type { MpAccount } from './info';
 import type { Metadata } from './metadata';
+import type { MonitorWatch, MonitorTask } from './monitor';
 import type { ResourceAsset } from './resource';
 import type { ResourceMapAsset } from './resource-map';
 
@@ -19,6 +20,8 @@ const db = new Dexie('exporter.wxdown.online') as Dexie & {
   html: EntityTable<HtmlAsset, 'url'>;
   info: EntityTable<MpAccount, 'fakeid'>;
   metadata: EntityTable<Metadata, 'url'>;
+  monitor_watch: EntityTable<MonitorWatch, 'fakeid'>;
+  monitor_task: EntityTable<MonitorTask, 'id'>;
   resource: EntityTable<ResourceAsset, 'url'>;
   'resource-map': EntityTable<ResourceMapAsset, 'url'>;
 };
@@ -49,6 +52,11 @@ db.version(2).stores({
 
 db.version(3).stores({
   debug: 'url, fakeid',
+});
+
+db.version(4).stores({
+  monitor_watch: 'fakeid',
+  monitor_task: '++id, fakeid, status, created_at',
 });
 
 export { db };
