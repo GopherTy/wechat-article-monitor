@@ -3,9 +3,12 @@ import {
   getEnabledWatches,
   updateWatch,
   createTask,
+  updateTask,
   type MonitorWatch,
   type MonitorTask,
 } from '~/store/v2/monitor';
+import { extractCommentId } from '~/utils/comment';
+import { request } from '#shared/utils/request';
 
 export interface ArticlePollerEvents {
   'new-article': (task: MonitorTask) => void;
@@ -118,6 +121,13 @@ export class ArticlePoller {
           error_msg: '',
         };
         const id = await createTask(task);
+
+        const commentId = await this.fetchCommentId(article.link);
+        if (commentId) {
+          await updateTask(id, { comment_id: commentId });
+          task.comment_id = commentId;
+        }
+
         this.emit('new-article', { ...task, id });
       }
 
@@ -127,6 +137,24 @@ export class ArticlePoller {
       });
     } catch (err) {
       this.emit('error', watch.fakeid, err as Error);
+    }
+  }
+
+  private async fetchCommentId(articleUrl: string): Promise<string | null> {
+    try {
+      const credentials = JSON.parse(window.localStorage.getItem('credentials')!);
+      const headers: Record<string, string> = {};
+      if (credentials?.pass_ticket) {
+        headers.cookie = `pass_ticket=${credentials.pass_ticket};wap_sid2=${credentials.wap_sid2}`;
+      }
+      const html = await request<string>(articleUrl, {
+        timeout: 30000,
+        referrerPolicy: 'unsafe-url',
+      });
+      return extractCommentId(html);
+    } catch (err) {
+      console.warn('[ArticlePoller] Failed to fetch comment_id:', err);
+      return null;
     }
   }
 }
