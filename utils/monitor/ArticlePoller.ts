@@ -1,4 +1,5 @@
-import { getArticleList } from '~/apis';
+import { getArticleList, getComment } from '~/apis';
+import type { Comment } from '~/types/comment';
 import {
   getEnabledWatches,
   updateWatch,
@@ -124,8 +125,12 @@ export class ArticlePoller {
 
         const commentId = await this.fetchCommentId(article.link);
         if (commentId) {
-          await updateTask(id, { comment_id: commentId });
           task.comment_id = commentId;
+          const firstComments = await this.fetchFirstComments(commentId);
+          await updateTask(id, {
+            comment_id: commentId,
+            accumulated_comments: firstComments,
+          });
         }
 
         this.emit('new-article', { ...task, id });
@@ -137,6 +142,15 @@ export class ArticlePoller {
       });
     } catch (err) {
       this.emit('error', watch.fakeid, err as Error);
+    }
+  }
+
+  private async fetchFirstComments(commentId: string): Promise<Comment[]> {
+    try {
+      const response = await getComment(commentId);
+      return response?.elected_comment ?? [];
+    } catch {
+      return [];
     }
   }
 
