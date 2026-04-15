@@ -285,15 +285,21 @@ export async function downloads<T extends DownloadResource>(
   downloadFn: DownloadFn<T>,
   useProxy = true
 ) {
-  // 检查是否设置了私有代理地址
+  // 检查是否设置了私有代理地址（优先从 preferences 读取，兼容旧的 wechat-proxy 键）
   const privateProxy: string[] = [];
   try {
-    const proxy = JSON.parse(window.localStorage.getItem('wechat-proxy')!);
-    if (Array.isArray(proxy) && proxy.length > 0) {
-      privateProxy.push(...proxy);
+    const prefs = JSON.parse(window.localStorage.getItem('preferences')!);
+    if (Array.isArray(prefs?.privateProxyList) && prefs.privateProxyList.length > 0) {
+      privateProxy.push(...prefs.privateProxyList);
     }
-  } catch (e) {
-    console.log(e);
+  } catch {}
+  if (privateProxy.length === 0) {
+    try {
+      const proxy = JSON.parse(window.localStorage.getItem('wechat-proxy')!);
+      if (Array.isArray(proxy) && proxy.length > 0) {
+        privateProxy.push(...proxy);
+      }
+    } catch {}
   }
 
   // 初始化 pool
