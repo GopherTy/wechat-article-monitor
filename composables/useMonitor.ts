@@ -1,5 +1,4 @@
 import { getComment } from '~/apis';
-import { request } from '#shared/utils/request';
 import toastFactory from '~/composables/toast';
 import {
   type MonitorWatch,
@@ -14,6 +13,7 @@ import {
   updateTask,
 } from '~/store/v2/monitor';
 import { extractCommentId } from '~/utils/comment';
+import { downloadArticleHTML } from '~/utils/index';
 import { ArticlePoller } from '~/utils/monitor/ArticlePoller';
 import { CommentTracker } from '~/utils/monitor/CommentTracker';
 import { FinalCollector } from '~/utils/monitor/FinalCollector';
@@ -154,12 +154,9 @@ export default function useMonitor() {
 
   async function addArticleManually(articleUrl: string) {
     try {
-      toast.info('正在加载文章...', '提取文章信息和评论中');
+      toast.info('正在加载文章...', '通过代理下载文章并提取评论');
 
-      const html = await request<string>(articleUrl, {
-        timeout: 30000,
-        referrerPolicy: 'unsafe-url',
-      });
+      const html = await downloadArticleHTML(articleUrl);
 
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');

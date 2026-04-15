@@ -45,7 +45,7 @@ async function downloadAssetWithProxy<T extends Blob | string>(
  * @param articleURL
  * @param title
  */
-async function downloadArticleHTML(articleURL: string, title?: string) {
+export async function downloadArticleHTML(articleURL: string, title?: string) {
   let html = '';
   const parser = new DOMParser();
 
