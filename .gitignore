@@ -29,3 +29,6 @@ samples/**/output
 
 # wrangler
 .wrangler
+
+# Credential service runtime data
+credential-service/data/

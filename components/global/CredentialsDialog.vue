@@ -11,90 +11,37 @@
       </template>
 
       <div>
-        <UTabs
-          :items="tabs"
-          :ui="{ list: { marker: { background: 'bg-blue-500 text-white' }, tab: { active: 'text-white' } } }"
-        >
-          <template #item="{ item }">
-            <div v-if="item.key === 'wxdown'" class="space-y-5">
-              <p class="flex items-center text-sm">
-                <span class="text-rose-500 font-semibold">所需软件：</span>
-                <UButton @click="downloadProgram" variant="ghost" color="gray"
-                  >去下载 wxdown-service 程序
-                  <UIcon name="i-lucide:arrow-up-right" class="size-5" />
-                </UButton>
-              </p>
-              <div class="flex justify-between items-center gap-3">
-                <UInput
-                  class="flex-1"
-                  color="gray"
-                  type="url"
-                  v-model="wsURL"
-                  :disabled="monitoring || wsMonitoring"
-                  placeholder="请输入 ws 监听地址"
-                />
-                <UButton
-                  v-if="!wsMonitoring"
-                  :disabled="!wsURL || monitoring"
-                  color="blue"
-                  @click="startListenService(true)"
-                >
-                  开始监控
-                </UButton>
-                <UButton v-else icon="i-line-md:loading-twotone-loop" color="green" @click="stopListenService"
-                  >监控中，结束监控</UButton
-                >
-              </div>
+        <div class="space-y-4 mb-4">
+          <div class="flex items-center justify-between p-3 border rounded-lg">
+            <div class="flex items-center gap-2">
+              <span class="inline-block size-3 rounded-full" :class="serviceStatusColor"></span>
+              <span class="text-sm font-medium">Credential 抓包服务</span>
             </div>
-            <div v-if="item.key === 'mitmproxy'">
-              <p class="flex items-center text-sm">
-                <span class="text-rose-500 font-semibold">所需软件：</span>
-                <UButton @click="downloadPlugin" variant="ghost" color="gray"
-                  >去下载 mitmproxy 插件
-                  <UIcon name="i-lucide:arrow-up-right" class="size-5" />
-                </UButton>
-              </p>
-              <div class="text-sm my-5">
-                <p class="flex justify-between items-end">执行以下命令启动 mitmproxy 服务并加载 credential.py 插件：</p>
-                <p class="flex justify-between items-center bg-black text-white p-2 my-2 rounded-md">
-                  <code>mitmdump -s credential.py -q</code>
-                  <UIcon v-if="copied" name="i-lucide:copy-check" />
-                  <UIcon
-                    v-else
-                    name="i-lucide:copy"
-                    class="cursor-pointer"
-                    @click="copy('mitmdump -s credential.py -q')"
-                  />
-                </p>
-              </div>
-              <div class="flex justify-between items-center gap-3">
-                <UInput
-                  class="flex-1"
-                  color="gray"
-                  v-model="apiKey"
-                  :disabled="authorized || wsMonitoring"
-                  placeholder="请输入API Key"
-                />
-                <UButton
-                  class="px-5"
-                  color="blue"
-                  :loading="authorizeBtnLoading"
-                  :disabled="!apiKey || authorized || wsMonitoring || monitoring"
-                  @click="authorize"
-                  >认证</UButton
-                >
+            <div class="text-sm text-gray-500">
+              <template v-if="serviceStatus.running">
+                代理地址: {{ serviceStatus.proxyAddress }}
+              </template>
+              <template v-else>
+                未启动 (需要安装 mitmproxy)
+              </template>
+            </div>
+          </div>
 
-                <UButton v-if="!monitoring" :disabled="!authorized || wsMonitoring" color="blue" @click="start"
-                  >开始监控</UButton
-                >
-                <UButton v-else icon="i-line-md:loading-twotone-loop" color="green" @click="stop"
-                  >监控中，结束监控</UButton
-                >
-              </div>
+          <div class="flex items-center justify-between p-3 border rounded-lg">
+            <div class="flex items-center gap-2">
+              <span class="inline-block size-3 rounded-full" :class="wsConnected ? 'bg-green-500' : 'bg-gray-400'"></span>
+              <span class="text-sm font-medium">WebSocket 连接</span>
             </div>
-          </template>
-        </UTabs>
-        <ul class="flex flex-col mt-3 p-1 gap-4 overflow-y-scroll h-[calc(100vh-20rem)] no-scrollbar">
+            <span class="text-sm text-gray-500">{{ wsConnected ? '已连接' : '未连接' }}</span>
+          </div>
+
+          <p class="text-xs text-gray-400">
+            将系统代理设为 <code class="bg-gray-100 dark:bg-gray-800 px-1 rounded">127.0.0.1:{{ serviceStatus.port }}</code>，
+            在微信内打开公众号文章即可自动抓取 Credentials。
+          </p>
+        </div>
+
+        <ul class="flex flex-col p-1 gap-4 overflow-y-scroll h-[calc(100vh-22rem)] no-scrollbar">
           <li
             v-for="credential in credentials"
             :key="credential.biz"
@@ -143,7 +90,7 @@ import { getArticleList, getArticleListWithCredential } from '~/apis';
 import LoginModal from '~/components/modal/Login.vue';
 import toastFactory from '~/composables/toast';
 import useLoginCheck from '~/composables/useLoginCheck';
-import { CREDENTIAL_API_HOST, CREDENTIAL_LIVE_MINUTES, isDev } from '~/config';
+import { CREDENTIAL_LIVE_MINUTES, isDev } from '~/config';
 import { getInfoCache, type MpAccount } from '~/store/v2/info';
 import type { ParsedCredential } from '~/types/credential';
 
@@ -164,34 +111,37 @@ async function pullData(fakeid: string) {
   pullArticleLoading.value = false;
 }
 
-const tabs = [
-  {
-    key: 'wxdown',
-    label: 'wxdown 程序版',
-  },
-  {
-    key: 'mitmproxy',
-    label: 'mitmproxy 插件版',
-  },
-];
-
 const { checkLogin } = useLoginCheck();
 
 const credentials = useLocalStorage<ParsedCredential[]>('auto-detect-credentials:credentials', []);
 for (const item of credentials.value) {
   item.valid = Date.now() < item.timestamp + 1000 * 60 * CREDENTIAL_LIVE_MINUTES;
 }
-const validCredentialCount = computed(() => credentials.value.filter(c => c.valid).length);
 const pendingCredentialCount = computed(() => credentials.value.filter(c => c.valid && !c.added).length);
 const toast = toastFactory();
 const modal = useModal();
-
 const addingBiz = ref<string | null>(null);
 
-/**
- * 从 set_cookie 字符串中解析 appmsg_token 和完整 cookie 字符串
- * set_cookie 格式: "name=value; Path=/; HttpOnly, name2=value2; Path=/; HttpOnly, ..."
- */
+const serviceStatus = ref<{ running: boolean; proxyAddress: string | null; port: number }>({
+  running: false,
+  proxyAddress: null,
+  port: 65000,
+});
+
+const serviceStatusColor = computed(() => {
+  if (serviceStatus.value.running) return 'bg-green-500';
+  return 'bg-red-400';
+});
+
+async function fetchServiceStatus() {
+  try {
+    const data = await $fetch<any>('/api/credential/status');
+    serviceStatus.value = data;
+  } catch {
+    serviceStatus.value = { running: false, proxyAddress: null, port: 65000 };
+  }
+}
+
 function parseSetCookie(setCookie: string): { appmsg_token: string; cookie: string } {
   let appmsg_token = '';
   const tokenMatch = setCookie.match(/appmsg_token=(?<token>[^;]+)/);
@@ -199,17 +149,14 @@ function parseSetCookie(setCookie: string): { appmsg_token: string; cookie: stri
     appmsg_token = decodeURIComponent(tokenMatch.groups.token.trim());
   }
 
-  // 按逗号分隔各 cookie 条目，提取有效的 name=value 对
   const cookieParts: string[] = [];
   const entries = setCookie.split(',');
   for (const entry of entries) {
     const nameValue = entry.trim().split(';')[0].trim();
     if (!nameValue || !nameValue.includes('=')) continue;
-    // 跳过 EXPIRED 值和纯属性条目
     if (nameValue.includes('EXPIRED')) continue;
     const name = nameValue.split('=')[0].trim();
     if (['Path', 'Expires', 'HttpOnly', 'Secure', 'Domain', 'SameSite'].includes(name)) continue;
-    // 跳过空值（如 rewardsn=）
     const value = nameValue.split('=').slice(1).join('=');
     if (!value) continue;
     cookieParts.push(nameValue);
@@ -226,198 +173,65 @@ async function refreshCredentialAddedState() {
   await Promise.allSettled(pending);
 }
 
-// 监听账号事件，及时更新当前凭据项的按钮状态
 const { accountEventBus } = useAccountEventBus();
 accountEventBus.on((event, payload) => {
   if (event === 'account-added') {
     const target = credentials.value.find(item => item.biz === payload?.fakeid);
-    if (target) {
-      target.added = true;
-    }
+    if (target) target.added = true;
   } else if (event === 'account-removed') {
     const target = credentials.value.find(item => item.biz === payload?.fakeid);
-    if (target) {
-      target.added = false;
-    }
+    if (target) target.added = false;
   }
 });
 
-interface Credential {
+interface CredentialRaw {
+  biz?: string;
+  name?: string;
+  avatar?: string;
   url: string;
   set_cookie: string;
   timestamp: number;
-  name: string;
-  avatar: string;
 }
 
-let timer: number;
-let manulStopped = false;
-let listenRetryTimer: number | null = null;
-const monitoring = ref(JSON.parse(localStorage.getItem('auto-detect-credentials:monitoring') as string) || false);
-
-function start() {
-  monitoring.value = true;
-  const oldTimer = localStorage.getItem('auto-detect-credentials:monitoring-timer');
-  if (oldTimer) {
-    window.clearInterval(parseInt(oldTimer));
-  }
-  fetchCredentials();
-  timer = window.setInterval(() => {
-    fetchCredentials();
-  }, 3000);
-  localStorage.setItem('auto-detect-credentials:monitoring', 'true');
-  localStorage.setItem('auto-detect-credentials:monitoring-timer', timer.toString());
-}
-function stop() {
-  monitoring.value = false;
-  localStorage.setItem('auto-detect-credentials:monitoring', 'false');
-  window.clearInterval(timer);
-}
-
-// 监听服务重试机制
-function scheduleListenRetry() {
-  if (listenRetryTimer) {
-    window.clearTimeout(listenRetryTimer);
-  }
-
-  // 如果是手动停止的，则不重试
-  if (manulStopped) return;
-
-  listenRetryTimer = window.setTimeout(() => {
-    startListenService();
-  }, 5000);
-}
-
-// 清除重试定时器
-function clearRetryTimer() {
-  if (listenRetryTimer) {
-    window.clearTimeout(listenRetryTimer);
-    listenRetryTimer = null;
-  }
-}
-
-onMounted(() => {
-  if (monitoring.value) {
-    start();
-  }
-  refreshCredentialAddedState();
-  startListenService();
-});
-
-onUnmounted(() => {
-  clearRetryTimer();
-});
-
-// 下载 credential.py 插件
-async function downloadPlugin() {
-  const link = document.createElement('a');
-  link.href = '/plugins/credential.py';
-  link.download = 'credential.py';
-  link.click();
-}
-
-// 下载 wxdown-service 程序
-async function downloadProgram() {
-  const link = document.createElement('a');
-  link.target = '_blank';
-  link.href = 'https://github.com/wechat-article/wxdown-service/releases';
-  link.download = 'wxdown-service';
-  link.click();
-}
-
-const apiKey = ref(localStorage.getItem('auto-detect-credentials:apikey') as string);
-const authorizeBtnLoading = ref(false);
-const authorized = ref(false);
-
-// 认证
-async function authorize() {
-  try {
-    authorizeBtnLoading.value = true;
-    const response = await fetch(`${CREDENTIAL_API_HOST}/authorize`, {
-      method: 'GET',
-      headers: {
-        Authorization: apiKey.value,
-      },
-    });
-    if (response.status === 200) {
-      authorized.value = true;
-      localStorage.setItem('auto-detect-credentials:apikey', apiKey.value);
-      alert('认证成功');
-    } else {
-      authorized.value = false;
-      localStorage.removeItem('auto-detect-credentials:apikey');
-      alert('认证失败，请确认 API Key 是否正确');
-    }
-  } catch (error: any) {
-    if (error.message === 'Failed to fetch') {
-      alert('mitmproxy 服务未启动');
-    } else {
-      alert(error.message);
-    }
-    authorized.value = false;
-  } finally {
-    authorizeBtnLoading.value = false;
-  }
-}
-
-// 获取数据
-async function fetchCredentials() {
-  let result: Credential[] = [];
-  try {
-    const response = await fetch(`${CREDENTIAL_API_HOST}/credentials`, {
-      method: 'GET',
-      headers: {
-        Authorization: apiKey.value,
-      },
-    });
-    if (response.status === 404) {
-      result = [];
-    } else if (response.status !== 200) {
-      authorized.value = false;
-      stop();
-      return;
-    } else {
-      result = await response.json();
-    }
-  } catch (error) {
-    console.error(error);
-    authorized.value = false;
-    stop();
-    return;
-  }
-
+async function processCredentialData(result: CredentialRaw[]) {
   const _credentials: ParsedCredential[] = [];
   for (const item of result) {
-    const searchParams = new URL(item.url).searchParams;
-    const __biz = searchParams.get('__biz')!;
-    const uin = searchParams.get('uin')!;
-    const key = searchParams.get('key')!;
-    const pass_ticket = searchParams.get('pass_ticket')!;
+    let __biz: string | null = null;
+    let uin: string | null = null;
+    let key: string | null = null;
+    let pass_ticket: string | null = null;
 
-    let wap_sid2 = null;
+    try {
+      const searchParams = new URL(item.url).searchParams;
+      __biz = searchParams.get('__biz');
+      uin = searchParams.get('uin');
+      key = searchParams.get('key');
+      pass_ticket = searchParams.get('pass_ticket');
+    } catch {
+      continue;
+    }
+
+    let wap_sid2: string | null = null;
     const matchResult = item.set_cookie.match(/wap_sid2=(?<wap_sid2>.+?);/);
-    if (matchResult && matchResult.groups && matchResult.groups.wap_sid2) {
+    if (matchResult?.groups?.wap_sid2) {
       wap_sid2 = matchResult.groups.wap_sid2;
     }
 
     const { appmsg_token, cookie } = parseSetCookie(item.set_cookie);
 
-    // 验证完整性
-    if (!__biz || !uin || !key || !pass_ticket || !wap_sid2) {
-      continue;
-    }
+    if (!__biz || !uin || !key || !pass_ticket || !wap_sid2) continue;
 
     const info = await getInfoCache(__biz);
     _credentials.push({
       nickname: item.name || info?.nickname,
       avatar: item.avatar || info?.round_head_img,
       biz: __biz,
-      uin: uin,
-      key: key,
-      pass_ticket: pass_ticket,
-      wap_sid2: wap_sid2,
-      appmsg_token: appmsg_token,
-      cookie: cookie,
+      uin,
+      key,
+      pass_ticket,
+      wap_sid2,
+      appmsg_token,
+      cookie,
       timestamp: item.timestamp,
       time: dayjs(item.timestamp).format('YYYY-MM-DD HH:mm:ss'),
       valid: Date.now() < item.timestamp + 1000 * 60 * CREDENTIAL_LIVE_MINUTES,
@@ -427,96 +241,69 @@ async function fetchCredentials() {
   credentials.value = _credentials.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-const wsURL = ref('ws://127.0.0.1:65001');
-const wsMonitoring = ref(false);
+const wsConnected = ref(false);
 let _ws: WebSocket | null = null;
+let retryTimer: number | null = null;
 
-// 启动监听服务
-async function startListenService(isManual = false) {
-  const url = wsURL.value.trim();
-  if (!url) {
-    return;
-  }
-  if (isManual) {
-    // 手动启动时，取消手动停止标记
-    manulStopped = false;
-  }
-  const ws = new WebSocket(url);
+function getWsUrl() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${location.host}/api/credential/ws`;
+}
+
+function connectWs() {
+  if (_ws) return;
+
+  const ws = new WebSocket(getWsUrl());
   ws.addEventListener('open', () => {
-    wsMonitoring.value = true;
+    wsConnected.value = true;
     _ws = ws;
-    clearRetryTimer();
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
   });
-  ws.addEventListener('message', async evt => {
-    let result = [];
+  ws.addEventListener('message', async (evt) => {
     try {
-      result = JSON.parse(evt.data);
+      const result: CredentialRaw[] = JSON.parse(evt.data);
+      await processCredentialData(result);
     } catch (e) {
-      console.warn('解析失败: ', e);
+      console.warn('[credential-ws] parse error:', e);
     }
-    const _credentials: ParsedCredential[] = [];
-    for (const item of result) {
-      const searchParams = new URL(item.url).searchParams;
-      const __biz = searchParams.get('__biz')!;
-      const uin = searchParams.get('uin')!;
-      const key = searchParams.get('key')!;
-      const pass_ticket = searchParams.get('pass_ticket')!;
-
-      let wap_sid2 = null;
-      const matchResult = item.set_cookie.match(/wap_sid2=(?<wap_sid2>.+?);/);
-      if (matchResult && matchResult.groups && matchResult.groups.wap_sid2) {
-        wap_sid2 = matchResult.groups.wap_sid2;
-      }
-
-      const { appmsg_token, cookie } = parseSetCookie(item.set_cookie);
-
-      // 验证完整性
-      if (!__biz || !uin || !key || !pass_ticket || !wap_sid2) {
-        continue;
-      }
-
-      const info = await getInfoCache(__biz);
-      _credentials.push({
-        nickname: item.name || info?.nickname,
-        avatar: item.avatar || info?.round_head_img,
-        biz: __biz,
-        uin: uin,
-        key: key,
-        pass_ticket: pass_ticket,
-        wap_sid2: wap_sid2,
-        appmsg_token: appmsg_token,
-        cookie: cookie,
-        timestamp: item.timestamp,
-        time: dayjs(item.timestamp).format('YYYY-MM-DD HH:mm:ss'),
-        valid: Date.now() < item.timestamp + 1000 * 60 * CREDENTIAL_LIVE_MINUTES,
-        added: Boolean(info),
-      });
-    }
-    credentials.value = _credentials.sort((a, b) => b.timestamp - a.timestamp);
   });
   ws.addEventListener('close', () => {
-    wsMonitoring.value = false;
+    wsConnected.value = false;
     _ws = null;
-    scheduleListenRetry();
+    scheduleRetry();
   });
-  ws.addEventListener('error', evt => {
-    scheduleListenRetry();
+  ws.addEventListener('error', () => {
+    scheduleRetry();
   });
 }
 
-// 停止监听服务
-async function stopListenService() {
-  manulStopped = true;
-  if (_ws) {
-    _ws.close();
-  }
-  clearRetryTimer();
+function scheduleRetry() {
+  if (retryTimer) return;
+  retryTimer = window.setTimeout(() => {
+    retryTimer = null;
+    connectWs();
+  }, 5000);
 }
+
+onMounted(() => {
+  fetchServiceStatus();
+  refreshCredentialAddedState();
+  connectWs();
+  setInterval(fetchServiceStatus, 10000);
+});
+
+onUnmounted(() => {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+});
 
 async function addAccount(credential: ParsedCredential) {
-  if (credential.added || addingBiz.value === credential.biz) {
-    return;
-  }
+  if (credential.added || addingBiz.value === credential.biz) return;
   if (!checkLogin()) return;
 
   addingBiz.value = credential.biz;
@@ -535,7 +322,6 @@ async function addAccount(credential: ParsedCredential) {
     await getArticleList(account, 0);
     credential.added = true;
     toast.success('公众号添加成功', `已成功添加公众号【${nickname}】`);
-    // 通知其他视图（如公众号管理列表）立即刷新
     accountEventBus.emit('account-added', { fakeid: credential.biz });
   } catch (error: any) {
     if (error?.message === 'session expired') {
@@ -549,25 +335,10 @@ async function addAccount(credential: ParsedCredential) {
 }
 
 watchEffect(() => {
-  if (!monitoring.value && !wsMonitoring.value) {
-    state.value = 'inactive';
-  } else if (monitoring.value || wsMonitoring.value) {
-    state.value = 'active';
-  } else {
-    state.value = 'warning';
-  }
+  state.value = wsConnected.value ? 'active' : 'inactive';
 });
 
 watchEffect(() => {
   emit('update:pendingCount', pendingCredentialCount.value);
 });
-
-const copied = ref(false);
-function copy(text: string) {
-  navigator.clipboard.writeText(text);
-  copied.value = true;
-  setTimeout(() => {
-    copied.value = false;
-  }, 1000);
-}
 </script>

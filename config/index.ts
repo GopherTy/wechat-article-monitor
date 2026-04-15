@@ -34,10 +34,6 @@ export const ACCOUNT_TYPE: Record<number, string> = {
  */
 export const CREDENTIAL_LIVE_MINUTES: number = 25;
 
-/**
- * Credentials 服务器主机地址
- */
-export const CREDENTIAL_API_HOST = 'http://127.0.0.1:8088';
 
 /**
  * 文档站点地址

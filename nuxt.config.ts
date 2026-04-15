@@ -36,6 +36,9 @@ export default defineNuxtConfig({
   },
   nitro: {
     minify: process.env.NODE_ENV === 'production',
+    experimental: {
+      websocket: true,
+    },
     storage: {
       kv: {
         driver: process.env.NITRO_KV_DRIVER || 'memory',
