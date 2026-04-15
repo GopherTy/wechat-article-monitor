@@ -1,3 +1,5 @@
+import { getComment } from '~/apis';
+import { request } from '#shared/utils/request';
 import toastFactory from '~/composables/toast';
 import {
   type MonitorWatch,
@@ -7,9 +9,11 @@ import {
   addWatch,
   removeWatch,
   updateWatch,
+  createTask,
   deleteTask,
   updateTask,
 } from '~/store/v2/monitor';
+import { extractCommentId } from '~/utils/comment';
 import { ArticlePoller } from '~/utils/monitor/ArticlePoller';
 import { CommentTracker } from '~/utils/monitor/CommentTracker';
 import { FinalCollector } from '~/utils/monitor/FinalCollector';
@@ -148,6 +152,57 @@ export default function useMonitor() {
     URL.revokeObjectURL(url);
   }
 
+  async function addArticleManually(articleUrl: string) {
+    try {
+      toast.info('正在加载文章...', '提取文章信息和评论中');
+
+      const html = await request<string>(articleUrl, {
+        timeout: 30000,
+        referrerPolicy: 'unsafe-url',
+      });
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const title = doc.querySelector('#activity-name')?.textContent?.trim() || '未知标题';
+      const nickname = doc.querySelector('#js_name')?.textContent?.trim() || '未知公众号';
+
+      const commentId = extractCommentId(html) || '';
+
+      const now = Date.now();
+      const task: Omit<MonitorTask, 'id'> = {
+        fakeid: '',
+        nickname,
+        article_url: articleUrl,
+        article_title: title,
+        article_aid: '',
+        comment_id: commentId,
+        status: 'tracking',
+        created_at: now,
+        tracking_end_at: now + 2 * 60 * 60 * 1000,
+        accumulated_comments: [],
+        final_comments: [],
+        shielded_comments: [],
+        stats: {},
+        error_msg: '',
+      };
+
+      if (commentId) {
+        const response = await getComment(commentId);
+        if (response) {
+          task.accumulated_comments = response.elected_comment ?? [];
+        }
+      }
+
+      const id = await createTask(task);
+      await refreshTasks();
+
+      const commentCount = task.accumulated_comments.length;
+      toast.success('手动添加成功', `【${nickname}】${title}，已抓取 ${commentCount} 条评论，开始 2 小时评论追踪`);
+    } catch (err) {
+      toast.error('添加失败', (err as Error).message);
+    }
+  }
+
   refreshWatches();
   refreshTasks();
 
@@ -163,6 +218,7 @@ export default function useMonitor() {
     retryTask,
     removeTask,
     downloadTaskMarkdown,
+    addArticleManually,
     refreshTasks,
     refreshWatches,
   };

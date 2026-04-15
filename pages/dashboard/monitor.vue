@@ -17,8 +17,23 @@ const {
   retryTask,
   removeTask,
   downloadTaskMarkdown,
+  addArticleManually,
   refreshTasks,
 } = useMonitor();
+
+const manualArticleUrl = ref('');
+const addingManual = ref(false);
+
+async function onAddManualArticle() {
+  if (!manualArticleUrl.value.trim()) return;
+  addingManual.value = true;
+  try {
+    await addArticleManually(manualArticleUrl.value.trim());
+    manualArticleUrl.value = '';
+  } finally {
+    addingManual.value = false;
+  }
+}
 
 const searchKeyword = ref('');
 const searchResults = ref<AccountInfo[]>([]);
@@ -158,6 +173,20 @@ onUnmounted(() => {
           </div>
         </div>
       </UModal>
+
+      <!-- 手动添加文章 -->
+      <section>
+        <h2 class="text-lg font-semibold mb-4">手动添加文章</h2>
+        <div class="flex gap-2">
+          <UInput
+            v-model="manualArticleUrl"
+            placeholder="粘贴公众号文章链接"
+            class="flex-1"
+            @keyup.enter="onAddManualArticle"
+          />
+          <UButton :loading="addingManual" @click="onAddManualArticle">添加到监控</UButton>
+        </div>
+      </section>
 
       <!-- 任务列表 -->
       <section>
