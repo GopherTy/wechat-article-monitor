@@ -14,7 +14,7 @@
 - 监控公众号数量 ≤5 个
 - 每 5 分钟检查一次新文章
 - 依赖现有的微信公众平台后台登录态（MP session）拉取文章列表
-- 依赖现有的 reader credential（mitmproxy 抓取）拉取评论。评论接口需要 `__biz`、`pass_ticket`、`key`、`uin` 四个字段，来自 `localStorage` 中的 `credentials`。这些凭证有时效性，如果在 2 小时追踪窗口内过期，CommentTracker 应记录错误但不中断任务，等用户刷新凭证后自动恢复
+- 依赖现有的 reader credential（mitmproxy 抓取）拉取评论。评论接口需要 `__biz`、`pass_ticket`、`key`、`uin` 四个字段，来自 `localStorage` 中的 `credentials`。这些凭证有效期约 25-30 分钟，远短于 2 小时追踪窗口。CommentTracker 需要每隔 25 分钟通过 toast 提醒用户在手机微信中打开任意一篇被监控公众号的文章，mitmproxy 会自动抓取新的 credential。如果 credential 过期且未刷新，CommentTracker 记录错误但不中断任务，等新 credential 到达后自动恢复追踪
 
 ## 数据模型
 
@@ -77,6 +77,7 @@
 - 每次执行：扫描所有 `status === 'tracking'` 的任务
 - 对每个任务调用 `getComment(comment_id)`，将 `elected_comment` 按 `content_id` 去重合并到 `accumulated_comments`
 - 当 `Date.now() >= tracking_end_at` 时，将状态流转为 `final_collecting`
+- Credential 刷新提醒：每隔 25 分钟通过 `useToast()` 弹出提醒"请在手机微信中打开一篇被监控公众号的文章以刷新凭证"。如果当前 credential 已过期（调用评论接口失败或 credential 的 `timestamp` 超过 25 分钟），在任务卡片上显示"凭证已过期"警告，但不中断任务。新 credential 被 mitmproxy 抓取后通过 WebSocket 推送至客户端，CommentTracker 自动恢复追踪
 
 ### FinalCollector — 最终采集器
 
