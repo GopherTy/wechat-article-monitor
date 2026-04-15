@@ -180,9 +180,14 @@ onUnmounted(() => {
                   {{ task.nickname }} · {{ dayjs(task.created_at).format('MM-DD HH:mm') }}
                 </p>
               </div>
-              <UBadge :color="getStatusLabel(task.status).color" variant="subtle">
-                {{ getStatusLabel(task.status).label }}
-              </UBadge>
+              <div class="flex items-center gap-2">
+                <UBadge :color="getStatusLabel(task.status).color" variant="subtle">
+                  {{ getStatusLabel(task.status).label }}
+                </UBadge>
+                <UButton size="xs" color="rose" variant="ghost" @click="removeTask(task.id!)">
+                  <UIcon name="i-lucide:trash-2" />
+                </UButton>
+              </div>
             </div>
 
             <!-- 追踪中：进度 -->
@@ -214,10 +219,7 @@ onUnmounted(() => {
             <!-- 异常：错误信息 -->
             <div v-if="task.status === 'error'" class="mt-3 flex items-center justify-between">
               <p class="text-sm text-rose-500">{{ task.error_msg }}</p>
-              <div class="flex gap-2">
-                <UButton size="xs" variant="outline" @click="retryTask(task.id!)">重试</UButton>
-                <UButton size="xs" color="rose" variant="ghost" @click="removeTask(task.id!)">删除</UButton>
-              </div>
+              <UButton size="xs" variant="outline" @click="retryTask(task.id!)">重试</UButton>
             </div>
           </div>
         </div>
