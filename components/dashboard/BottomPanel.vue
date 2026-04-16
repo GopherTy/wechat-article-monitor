@@ -84,11 +84,24 @@ async function logout() {
   logoutBtnLoading.value = false;
 }
 
+async function checkSession() {
+  if (!loginAccount.value) return;
+  try {
+    const resp = await request<{ nick_name: string; error?: string }>('/api/web/mp/info');
+    if (resp.error || !resp.nick_name) {
+      loginAccount.value = null;
+    }
+  } catch {
+    loginAccount.value = null;
+  }
+}
+
 let timer: number;
 onMounted(() => {
   timer = window.setInterval(() => {
     now.value = new Date();
   }, 1000);
+  checkSession();
 });
 onUnmounted(() => {
   window.clearInterval(timer);

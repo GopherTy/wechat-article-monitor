@@ -34,6 +34,7 @@ const monitoring = ref(false);
 
 export default function useMonitor() {
   const toast = toastFactory();
+  const loginAccount = useLoginAccount();
 
   function downloadBlob(filename: string, blob: Blob) {
     const url = URL.createObjectURL(blob);
@@ -63,6 +64,7 @@ export default function useMonitor() {
     articlePollingPausedByAuth = true;
     poller?.stop();
     poller = null;
+    loginAccount.value = null;
     toast.warning('新文章轮询已暂停', '公众号后台登录已过期，现有监控任务会继续追踪评论');
   }
 

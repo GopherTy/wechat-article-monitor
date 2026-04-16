@@ -63,7 +63,7 @@ export async function getArticleList(
       return publish_info.appmsgex;
     });
     return [articles, isCompleted, publish_page.total_count];
-  } else if (resp.base_resp.ret === 200003) {
+  } else if (resp.base_resp.ret === 200003 || resp.base_resp.err_msg?.includes('未登录或登录已过期')) {
     loginAccount.value = null;
     throw new Error('session expired');
   } else {
@@ -91,7 +91,7 @@ export async function getAccountList(begin = 0, keyword = ''): Promise<[AccountI
     const isCompleted = begin === 0 ? resp.total < ACCOUNT_LIST_PAGE_SIZE : resp.total === 0;
 
     return [resp.list, isCompleted];
-  } else if (resp.base_resp.ret === 200003) {
+  } else if (resp.base_resp.ret === 200003 || resp.base_resp.err_msg?.includes('未登录或登录已过期')) {
     loginAccount.value = null;
     throw new Error('session expired');
   } else {
