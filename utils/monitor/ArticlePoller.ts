@@ -1,15 +1,6 @@
-import { getArticleList, getComment } from '~/apis';
-import type { Comment } from '~/types/comment';
-import {
-  getEnabledWatches,
-  updateWatch,
-  createTask,
-  updateTask,
-  type MonitorWatch,
-  type MonitorTask,
-} from '~/store/v2/monitor';
-import { extractCommentId } from '~/utils/comment';
-import { downloadArticleHTML } from '~/utils/index';
+import { getArticleList } from '~/apis';
+import { createTask, getEnabledWatches, type MonitorTask, type MonitorWatch, updateWatch } from '~/store/v2/monitor';
+import { syncMonitorTaskComments } from '~/utils/monitor/task-sync';
 
 export interface ArticlePollerEvents {
   'new-article': (task: MonitorTask) => void;
@@ -93,7 +84,7 @@ export class ArticlePoller {
 
       if (articles.length === 0) return;
 
-      const newArticles = watch.last_known_aid ? articles.filter((a) => a.aid > watch.last_known_aid) : [];
+      const newArticles = watch.last_known_aid ? articles.filter(a => a.aid > watch.last_known_aid) : [];
 
       if (!watch.last_known_aid) {
         await updateWatch(watch.fakeid, {
@@ -114,26 +105,23 @@ export class ArticlePoller {
           comment_id: '',
           status: 'tracking',
           created_at: now,
-          tracking_end_at: now + 2 * 60 * 60 * 1000,
+          tracking_end_at: now + 1.5 * 60 * 60 * 1000,
           accumulated_comments: [],
           final_comments: [],
           shielded_comments: [],
           stats: {},
           error_msg: '',
+          auto_track_enabled: true,
         };
         const id = await createTask(task);
-
-        const commentId = await this.fetchCommentId(article.link);
-        if (commentId) {
-          task.comment_id = commentId;
-          const firstComments = await this.fetchFirstComments(commentId);
-          await updateTask(id, {
-            comment_id: commentId,
-            accumulated_comments: firstComments,
-          });
+        const createdTask = { ...task, id };
+        try {
+          const synced = await syncMonitorTaskComments(createdTask);
+          this.emit('new-article', synced.task);
+        } catch (err) {
+          this.emit('new-article', createdTask);
+          this.emit('error', watch.fakeid, new Error(`【${article.title}】初始化留言失败：${(err as Error).message}`));
         }
-
-        this.emit('new-article', { ...task, id });
       }
 
       await updateWatch(watch.fakeid, {
@@ -142,25 +130,6 @@ export class ArticlePoller {
       });
     } catch (err) {
       this.emit('error', watch.fakeid, err as Error);
-    }
-  }
-
-  private async fetchFirstComments(commentId: string): Promise<Comment[]> {
-    try {
-      const response = await getComment(commentId);
-      return response?.elected_comment ?? [];
-    } catch {
-      return [];
-    }
-  }
-
-  private async fetchCommentId(articleUrl: string): Promise<string | null> {
-    try {
-      const html = await downloadArticleHTML(articleUrl);
-      return extractCommentId(html);
-    } catch (err) {
-      console.warn('[ArticlePoller] Failed to fetch comment_id:', err);
-      return null;
     }
   }
 }

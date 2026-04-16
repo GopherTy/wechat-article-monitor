@@ -1,5 +1,5 @@
-import { getComment } from '~/apis';
-import { getTasksByStatus, updateTask, type MonitorTask } from '~/store/v2/monitor';
+import { getTasksByStatus, type MonitorTask, updateTask } from '~/store/v2/monitor';
+import { syncMonitorTaskComments } from '~/utils/monitor/task-sync';
 
 const CREDENTIAL_REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
@@ -61,6 +61,7 @@ export class CommentTracker {
           this.emit('tracking-complete', task.id!);
           continue;
         }
+        if (task.auto_track_enabled === false) continue;
         await this.fetchAndMergeComments(task);
       }
     } finally {
@@ -70,25 +71,8 @@ export class CommentTracker {
 
   private async fetchAndMergeComments(task: MonitorTask) {
     try {
-      if (!task.comment_id) return;
-
-      const response = await getComment(task.comment_id);
-      if (!response) return;
-
-      const newComments = response.elected_comment ?? [];
-      const existing = task.accumulated_comments ?? [];
-      const existingIds = new Set(existing.map((c) => c.content_id));
-
-      const merged = [...existing];
-      for (const comment of newComments) {
-        if (!existingIds.has(comment.content_id)) {
-          merged.push(comment);
-          existingIds.add(comment.content_id);
-        }
-      }
-
-      await updateTask(task.id!, { accumulated_comments: merged });
-      this.emit('comments-updated', task.id!, merged.length);
+      const result = await syncMonitorTaskComments(task);
+      this.emit('comments-updated', task.id!, result.mergedComments.length);
     } catch (err) {
       this.emit('error', task.id!, err as Error);
     }

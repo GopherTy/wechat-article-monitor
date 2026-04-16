@@ -1,6 +1,6 @@
-import { getArticleList, getComment } from '~/apis';
-import type { Comment } from '~/types/comment';
-import { getTasksByStatus, updateTask, type MonitorTask } from '~/store/v2/monitor';
+import { getArticleList } from '~/apis';
+import { getTasksByStatus, type MonitorTask, updateTask } from '~/store/v2/monitor';
+import { syncMonitorTaskComments } from '~/utils/monitor/task-sync';
 
 export interface FinalCollectorEvents {
   'task-done': (task: MonitorTask) => void;
@@ -57,18 +57,10 @@ export class FinalCollector {
       await updateTask(task.id!, { status: 'exporting' });
 
       const stats = await this.fetchArticleStats(task);
+      const result = await syncMonitorTaskComments(task);
+      const finalComments = result.latestComments;
 
-      let finalComments: Comment[] = [];
-      if (task.comment_id) {
-        const response = await getComment(task.comment_id);
-        if (response) {
-          finalComments = response.elected_comment ?? [];
-        }
-      }
-
-      const shielded = (task.accumulated_comments ?? []).filter(
-        (ac) => !finalComments.some((fc) => fc.content_id === ac.content_id),
-      );
+      const shielded = result.mergedComments.filter(ac => !finalComments.some(fc => fc.content_id === ac.content_id));
 
       await updateTask(task.id!, {
         final_comments: finalComments,
@@ -78,7 +70,7 @@ export class FinalCollector {
       });
 
       const updatedTask: MonitorTask = {
-        ...task,
+        ...result.task,
         final_comments: finalComments,
         shielded_comments: shielded,
         stats: stats,
@@ -95,7 +87,7 @@ export class FinalCollector {
     try {
       const account = { fakeid: task.fakeid, nickname: task.nickname, round_head_img: '' };
       const [articles] = await getArticleList(account as any, 0);
-      const target = articles.find((a) => a.aid === task.article_aid);
+      const target = articles.find(a => a.aid === task.article_aid);
       if (target) {
         return {
           read_num: (target as any).read_num,

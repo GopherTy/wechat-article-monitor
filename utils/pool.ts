@@ -2,9 +2,13 @@ import dayjs from 'dayjs';
 import PQueue from 'p-queue';
 import { v4 as uuid } from 'uuid';
 import { sleep } from '#shared/utils/helpers';
+import usePreferences from '~/composables/usePreferences';
 import { PUBLIC_PROXY_LIST } from '~/config/public-proxy';
+import type { Preferences } from '~/types/preferences';
 import type { DownloadableArticle } from '~/types/types';
 import type { AudioResource, VideoResource } from '~/types/video';
+
+const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 
 /**
  * 代理实例
@@ -285,22 +289,7 @@ export async function downloads<T extends DownloadResource>(
   downloadFn: DownloadFn<T>,
   useProxy = true
 ) {
-  // 检查是否设置了私有代理地址（优先从 preferences 读取，兼容旧的 wechat-proxy 键）
-  const privateProxy: string[] = [];
-  try {
-    const prefs = JSON.parse(window.localStorage.getItem('preferences')!);
-    if (Array.isArray(prefs?.privateProxyList) && prefs.privateProxyList.length > 0) {
-      privateProxy.push(...prefs.privateProxyList);
-    }
-  } catch {}
-  if (privateProxy.length === 0) {
-    try {
-      const proxy = JSON.parse(window.localStorage.getItem('wechat-proxy')!);
-      if (Array.isArray(proxy) && proxy.length > 0) {
-        privateProxy.push(...proxy);
-      }
-    } catch {}
-  }
+  const privateProxy = [...((preferences.value as Preferences).privateProxyList || [])];
 
   // 初始化 pool
   pool.init(privateProxy);

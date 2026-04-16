@@ -32,6 +32,7 @@ export interface MonitorTask {
   shielded_comments: Comment[];
   stats: MonitorTaskStats;
   error_msg: string;
+  auto_track_enabled?: boolean;
 }
 
 export async function getAllWatches(): Promise<MonitorWatch[]> {

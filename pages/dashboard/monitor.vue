@@ -9,6 +9,7 @@ const {
   watches,
   tasks,
   monitoring,
+  credentials,
   addWatchAccount,
   removeWatchAccount,
   toggleWatch,
@@ -16,10 +17,43 @@ const {
   stopMonitoring,
   retryTask,
   removeTask,
+  toggleTaskAutoTrack,
   downloadTaskMarkdown,
+  downloadTaskPdf,
   addArticleManually,
+  fetchTaskComments,
   refreshTasks,
 } = useMonitor();
+
+const validCredentials = computed(() => credentials.value.filter(c => c.valid));
+
+const fetchingCommentTaskId = ref<number | null>(null);
+const exportingTaskKey = ref('');
+
+async function onFetchComments(taskId: number) {
+  fetchingCommentTaskId.value = taskId;
+  try {
+    await fetchTaskComments(taskId);
+  } finally {
+    fetchingCommentTaskId.value = null;
+  }
+}
+
+async function onExportTask(task: MonitorTask, type: 'markdown' | 'pdf') {
+  const key = `${type}:${task.id}`;
+  exportingTaskKey.value = key;
+  try {
+    if (type === 'markdown') {
+      await downloadTaskMarkdown(task);
+    } else {
+      await downloadTaskPdf(task);
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    exportingTaskKey.value = '';
+  }
+}
 
 const manualArticleUrl = ref('');
 const addingManual = ref(false);
@@ -81,10 +115,13 @@ function getTrackingProgress(task: MonitorTask) {
   return Math.round((elapsed / total) * 100);
 }
 
-function getTrackingTimeText(task: MonitorTask) {
-  const elapsedMin = Math.round((Date.now() - task.created_at) / 60000);
-  const totalMin = Math.round((task.tracking_end_at - task.created_at) / 60000);
-  return `${Math.min(elapsedMin, totalMin)}/${totalMin} 分钟`;
+function getRemainingTimeText(task: MonitorTask) {
+  const remainMs = Math.max(0, task.tracking_end_at - Date.now());
+  const remainMin = Math.ceil(remainMs / 60000);
+  if (remainMin <= 0) return '即将完成';
+  const h = Math.floor(remainMin / 60);
+  const m = remainMin % 60;
+  return h > 0 ? `剩余 ${h}h${m}min` : `剩余 ${m}min`;
 }
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -101,12 +138,23 @@ onUnmounted(() => {
 <template>
   <div class="p-6 overflow-y-auto h-full">
     <div class="max-w-4xl mx-auto space-y-8">
-      <!-- 标题 & 总控 -->
+      <!-- 标题 & 状态 -->
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold">文章监控</h1>
-        <UButton :color="monitoring ? 'rose' : 'primary'" @click="monitoring ? stopMonitoring() : startMonitoring()">
-          {{ monitoring ? '停止监控' : '开始监控' }}
-        </UButton>
+        <div class="flex items-center gap-2">
+          <span v-if="monitoring" class="flex items-center gap-1.5 text-sm text-green-500">
+            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            监控中（{{ watches.filter(w => w.enabled).length }} 个公众号）
+          </span>
+          <span v-else-if="watches.length > 0" class="text-sm text-amber-500">已暂停</span>
+          <span v-else class="text-sm text-gray-400">添加公众号后自动开启</span>
+          <UButton v-if="monitoring" size="xs" color="rose" variant="ghost" @click="stopMonitoring()">
+            停止
+          </UButton>
+          <UButton v-else-if="watches.length > 0" size="xs" color="primary" variant="ghost" @click="startMonitoring()">
+            恢复
+          </UButton>
+        </div>
       </div>
 
       <!-- 监控列表 -->
@@ -174,6 +222,25 @@ onUnmounted(() => {
         </div>
       </UModal>
 
+      <!-- 可用凭证 -->
+      <section>
+        <h2 class="text-lg font-semibold mb-4">可用 Credential（{{ validCredentials.length }}）</h2>
+        <div v-if="validCredentials.length === 0" class="text-sm text-gray-500 py-4">
+          暂无可用凭证，请在手机微信中打开目标公众号的文章以自动获取
+        </div>
+        <div v-else class="flex flex-wrap gap-3">
+          <div
+            v-for="cred in validCredentials"
+            :key="cred.biz"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm"
+          >
+            <img v-if="cred.avatar" :src="cred.avatar" class="w-6 h-6 rounded-full" />
+            <span class="font-medium">{{ cred.nickname || cred.biz }}</span>
+            <span class="text-xs text-gray-400">{{ cred.time || dayjs(cred.timestamp).format('MM-DD HH:mm') }}</span>
+          </div>
+        </div>
+      </section>
+
       <!-- 手动添加文章 -->
       <section>
         <h2 class="text-lg font-semibold mb-4">手动添加文章</h2>
@@ -219,13 +286,50 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <!-- 追踪中：进度 -->
+            <!-- 追踪中：进度 + 手动操作 -->
             <div v-if="task.status === 'tracking'" class="mt-3">
-              <div class="flex justify-between text-xs text-gray-500 mb-1">
-                <span>已追踪 {{ getTrackingTimeText(task) }}</span>
-                <span>累积 {{ (task.accumulated_comments ?? []).length }} 条评论</span>
+              <div class="flex items-center justify-between gap-3 text-xs text-gray-500 mb-1">
+                <span class="flex items-center gap-2">
+                  <UToggle
+                    :model-value="task.auto_track_enabled !== false"
+                    size="2xs"
+                    @update:model-value="toggleTaskAutoTrack(task.id!, $event)"
+                  />
+                  <span :class="task.auto_track_enabled === false ? 'text-amber-500' : ''">
+                    {{ task.auto_track_enabled === false ? '自动抓取已暂停' : `累积 ${(task.accumulated_comments ?? []).length} 条评论` }}
+                    · {{ getRemainingTimeText(task) }}
+                  </span>
+                </span>
+                <div class="flex gap-2">
+                  <UButton
+                    size="xs"
+                    variant="outline"
+                    :loading="fetchingCommentTaskId === task.id"
+                    @click="onFetchComments(task.id!)"
+                  >
+                    <UIcon name="i-lucide:message-square" class="mr-1" />
+                    获取评论
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="outline"
+                    :loading="exportingTaskKey === `markdown:${task.id}`"
+                    @click="onExportTask(task, 'markdown')"
+                  >
+                    <UIcon name="i-lucide:file-text" class="mr-1" />
+                    Markdown
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="outline"
+                    :loading="exportingTaskKey === `pdf:${task.id}`"
+                    @click="onExportTask(task, 'pdf')"
+                  >
+                    <UIcon name="i-lucide:file-type-2" class="mr-1" />
+                    PDF
+                  </UButton>
+                </div>
               </div>
-              <UProgress :value="getTrackingProgress(task)" size="sm" />
             </div>
 
             <!-- 已完成：结果 -->
@@ -238,9 +342,23 @@ onUnmounted(() => {
                 <span class="text-gray-500 ml-2">/ 总计 {{ (task.final_comments ?? []).length }} 条评论</span>
               </div>
               <div class="flex gap-2">
-                <UButton size="xs" variant="outline" @click="downloadTaskMarkdown(task)">
-                  <UIcon name="i-lucide:download" class="mr-1" />
+                <UButton
+                  size="xs"
+                  variant="outline"
+                  :loading="exportingTaskKey === `markdown:${task.id}`"
+                  @click="onExportTask(task, 'markdown')"
+                >
+                  <UIcon name="i-lucide:file-text" class="mr-1" />
                   Markdown
+                </UButton>
+                <UButton
+                  size="xs"
+                  variant="outline"
+                  :loading="exportingTaskKey === `pdf:${task.id}`"
+                  @click="onExportTask(task, 'pdf')"
+                >
+                  <UIcon name="i-lucide:file-type-2" class="mr-1" />
+                  PDF
                 </UButton>
               </div>
             </div>

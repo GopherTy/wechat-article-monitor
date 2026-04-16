@@ -379,14 +379,20 @@ export class Downloader extends BaseDownloader {
           this.proxyManager.recordSuccess(proxy);
 
           if (response.base_resp.ret === 0) {
-            // 留言下载成功
             commentResponseArray.push(response);
             buffer = response.buffer;
             continue_flag = response.continue_flag;
             continue download_comment;
+          } else if (response.base_resp.ret === -1) {
+            if (response.elected_comment?.length > 0 || response.elected_comment_total_cnt === 0) {
+              commentResponseArray.push(response);
+              buffer = response.buffer;
+              continue_flag = response.continue_flag;
+              continue download_comment;
+            }
+            throwException(`文章有 ${response.elected_comment_total_cnt} 条评论但未返回数据，Credential 可能已过期，请刷新凭证后重试`);
           } else {
-            // 留言下载失败
-            throwException(`文章(url: ${url} )的评论(${cached.commentID})获取失败`);
+            throwException(`文章(url: ${url} )的评论(${cached.commentID})获取失败，ret: ${response.base_resp.ret}`);
           }
         } catch (error) {
           await this.handleDownloadFailure(proxy, url, attempt, error);

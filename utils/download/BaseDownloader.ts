@@ -131,6 +131,7 @@ export class BaseDownloader {
   protected async handleDownloadFailure(proxy: string, url: string, attempt: number, error: any): Promise<void> {
     this.proxyManager.recordFailure(proxy);
     console.warn(`Attempt ${attempt + 1} failed for ${url} using ${proxy}:`, error);
+    this.emit('download:error', url, attempt, error);
 
     if (attempt < this.options.maxRetries - 1) {
       const delay = Math.pow(2, attempt);
