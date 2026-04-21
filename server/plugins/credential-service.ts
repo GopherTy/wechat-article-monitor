@@ -1,7 +1,7 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { watch, readFile, access, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { type ChildProcess, spawn } from 'node:child_process';
 import { constants } from 'node:fs';
+import { access, mkdir, readFile, watch, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 const MITM_PORT = process.env.CREDENTIAL_MITM_PORT || '65000';
 const SERVICE_DIR = resolve(process.cwd(), 'credential-service');
@@ -110,10 +110,14 @@ async function startMitmProxy() {
   }
 
   const args = [
-    '-p', MITM_PORT,
-    '-s', CREDENTIAL_PY,
-    '--set', `credentials=${CREDENTIALS_JSON}`,
-    '--set', 'connection_strategy=lazy',
+    '-p',
+    MITM_PORT,
+    '-s',
+    CREDENTIAL_PY,
+    '--set',
+    `credentials=${CREDENTIALS_JSON}`,
+    '--set',
+    'connection_strategy=lazy',
   ];
 
   console.log(`[credential-service] starting mitmdump on port ${MITM_PORT}...`);
@@ -141,12 +145,12 @@ async function startMitmProxy() {
     }
   });
 
-  mitmProcess.on('exit', (code) => {
+  mitmProcess.on('exit', code => {
     mitmRunning = false;
     console.log(`[credential-service] mitmdump exited with code ${code}`);
   });
 
-  mitmProcess.on('error', (err) => {
+  mitmProcess.on('error', err => {
     mitmRunning = false;
     console.error('[credential-service] failed to start mitmdump:', err.message);
   });
@@ -164,7 +168,7 @@ function stopMitmProxy() {
   }
 }
 
-export default defineNitroPlugin((nitro) => {
+export default defineNitroPlugin(nitro => {
   startMitmProxy();
   startFileWatcher();
 

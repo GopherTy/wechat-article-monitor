@@ -1,6 +1,6 @@
 import { getBrowser } from '~/server/utils/puppeteer';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const html = await readBody<string>(event);
   if (!html || typeof html !== 'string') {
     throw createError({ statusCode: 400, statusMessage: '请求体必须是 HTML 字符串' });
@@ -15,7 +15,13 @@ export default defineEventHandler(async (event) => {
 
     const contentHeight = await page.evaluate(
       // @ts-expect-error runs in browser context
-      () => Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.scrollHeight, document.documentElement.offsetHeight),
+      () =>
+        Math.max(
+          document.body.scrollHeight,
+          document.body.offsetHeight,
+          document.documentElement.scrollHeight,
+          document.documentElement.offsetHeight
+        )
     );
 
     const pdfBuffer = await page.pdf({

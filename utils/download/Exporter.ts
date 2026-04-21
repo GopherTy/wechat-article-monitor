@@ -415,7 +415,7 @@ export class Exporter extends BaseDownloader {
     });
 
     turndownService.addRule('removeBottomBar', {
-      filter: (node) => {
+      filter: node => {
         const cls = node.getAttribute?.('class') || '';
         return cls.includes('__bottom-bar__') || cls.includes('sns_opr_btn');
       },
@@ -423,7 +423,7 @@ export class Exporter extends BaseDownloader {
     });
 
     turndownService.addRule('removeUselessImages', {
-      filter: (node) => {
+      filter: node => {
         if (node.nodeName !== 'IMG') return false;
         const src = node.getAttribute?.('src') || '';
         return src.startsWith('data:image/svg') || src.startsWith('data:image/png') || src.includes('wx.qlogo.cn');
@@ -432,7 +432,7 @@ export class Exporter extends BaseDownloader {
     });
 
     turndownService.addRule('cleanSpans', {
-      filter: (node) => node.nodeName === 'SPAN' && !node.textContent?.trim(),
+      filter: node => node.nodeName === 'SPAN' && !node.textContent?.trim(),
       replacement: () => '',
     });
 
@@ -494,7 +494,7 @@ export class Exporter extends BaseDownloader {
 
     await this.processFileExportQueue(
       this.urls,
-      async (url) => {
+      async url => {
         const cached = await getHtmlCache(url);
         if (!cached) {
           console.warn(`文章(url: ${url} )的 html 还未下载，不能导出`);
@@ -546,7 +546,7 @@ export class Exporter extends BaseDownloader {
         const pdfBlob = await response.blob();
         await this.writeFile(filename + '.pdf', pdfBlob);
       },
-      { concurrency: 2, progressEvent: 'export:write:progress' },
+      { concurrency: 2, progressEvent: 'export:write:progress' }
     );
     await sleep(100);
   }

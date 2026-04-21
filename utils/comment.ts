@@ -45,6 +45,45 @@ export function extractCommentId(html: string): string | null {
 }
 
 /**
+ * 从文章 HTML 中提取真实的 biz / mid(appmsgid) / idx(itemidx)。
+ * 微信文章顶部都会有形如 `var biz = '...' || '...';` 的脚本块，
+ * 即使用户传入的是 https://mp.weixin.qq.com/s/XXXXX 这种短链，
+ * 下载下来的 HTML 仍然包含真实参数；用它们覆盖 URL 解析得到的占位值，
+ * 才能让后续 appmsg_comment 接口接受请求（否则返回 ret=-1）。
+ */
+export function extractArticleMeta(html: string): {
+  biz: string | null;
+  mid: string | null;
+  idx: string | null;
+} {
+  const pickFirst = (pattern: RegExp): string | null => {
+    const match = html.match(pattern);
+    if (!match) return null;
+    const value = (match.groups?.value ?? match[1] ?? '').trim();
+    return value || null;
+  };
+
+  const biz =
+    pickFirst(/var\s+biz\s*=\s*['"](?<value>[^'"]+)['"]/) ||
+    pickFirst(/window\.biz\s*=\s*['"](?<value>[^'"]+)['"]/) ||
+    pickFirst(/"biz"\s*:\s*"(?<value>[^"]+)"/);
+
+  const mid =
+    pickFirst(/var\s+mid\s*=\s*['"](?<value>\d+)['"]/) ||
+    pickFirst(/window\.mid\s*=\s*['"](?<value>\d+)['"]/) ||
+    pickFirst(/var\s+appmsgid\s*=\s*['"]?(?<value>\d+)['"]?/) ||
+    pickFirst(/"appmsgid"\s*:\s*"?(?<value>\d+)"?/);
+
+  const idx =
+    pickFirst(/var\s+idx\s*=\s*['"](?<value>\d+)['"]/) ||
+    pickFirst(/window\.idx\s*=\s*['"](?<value>\d+)['"]/) ||
+    pickFirst(/var\s+itemidx\s*=\s*['"]?(?<value>\d+)['"]?/) ||
+    pickFirst(/"itemidx"\s*:\s*"?(?<value>\d+)"?/);
+
+  return { biz, mid, idx };
+}
+
+/**
  * 渲染文章的评论内容
  * @param url 文章链接
  */
@@ -94,7 +133,11 @@ export async function renderCommentSection(
 
       let reply_list = [];
       const commentReplyResponse = await getCommentReplyCache(url, comment.content_id);
-      if (commentReplyResponse && commentReplyResponse.data && commentReplyResponse.data.reply_list.reply_list.length > 0) {
+      if (
+        commentReplyResponse &&
+        commentReplyResponse.data &&
+        commentReplyResponse.data.reply_list.reply_list.length > 0
+      ) {
         reply_list = commentReplyResponse.data.reply_list.reply_list;
       } else if (comment.reply_new && comment.reply_new.reply_list.length > 0) {
         reply_list = comment.reply_new.reply_list;

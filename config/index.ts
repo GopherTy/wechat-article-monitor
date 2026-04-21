@@ -34,7 +34,6 @@ export const ACCOUNT_TYPE: Record<number, string> = {
  */
 export const CREDENTIAL_LIVE_MINUTES: number = 25;
 
-
 /**
  * 文档站点地址
  */

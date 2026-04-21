@@ -1,10 +1,11 @@
 import { updateArticleFakeid } from '~/store/v2/article';
 import { getCommentCache } from '~/store/v2/comment';
+import { type CommentMonitorTask, updateCommentMonitorTask } from '~/store/v2/commentMonitorTask';
 import { db } from '~/store/v2/db';
 import { getHtmlCache } from '~/store/v2/html';
-import { type MonitorTask, updateTask } from '~/store/v2/monitor';
 import type { Comment } from '~/types/comment';
 import type { AppMsgExWithFakeID } from '~/types/types';
+import { extractArticleMeta } from '~/utils/comment';
 import { Downloader } from '~/utils/download/Downloader';
 
 const SINGLE_ARTICLE_FAKEID = 'SINGLE_ARTICLE_FAKEID';
@@ -24,7 +25,7 @@ export function parseArticleUrlMeta(articleUrl: string) {
   };
 }
 
-function buildMonitorArticleStub(task: MonitorTask): AppMsgExWithFakeID {
+function buildMonitorArticleStub(task: CommentMonitorTask): AppMsgExWithFakeID {
   const { fakeid, appmsgid, itemidx, aid } = parseArticleUrlMeta(task.article_url);
   const resolvedFakeid = task.fakeid || fakeid;
   return {
@@ -63,21 +64,21 @@ function buildMonitorArticleStub(task: MonitorTask): AppMsgExWithFakeID {
   };
 }
 
-export async function ensureMonitorTaskArticleStub(task: MonitorTask) {
+export async function ensureMonitorTaskArticleStub(task: CommentMonitorTask) {
   const article = buildMonitorArticleStub(task);
   await db.article.put(article, `${article.fakeid}:${article.aid}`);
 }
 
 export interface SyncTaskCommentsResult {
-  task: MonitorTask;
+  task: CommentMonitorTask;
   latestComments: Comment[];
   mergedComments: Comment[];
 }
 
-export async function syncMonitorTaskComments(task: MonitorTask): Promise<SyncTaskCommentsResult> {
+export async function syncMonitorTaskComments(task: CommentMonitorTask): Promise<SyncTaskCommentsResult> {
   await ensureMonitorTaskArticleStub(task);
 
-  const updatedTask: MonitorTask = {
+  const updatedTask: CommentMonitorTask = {
     ...task,
     accumulated_comments: [...(task.accumulated_comments ?? [])],
   };
@@ -102,7 +103,7 @@ export async function syncMonitorTaskComments(task: MonitorTask): Promise<SyncTa
     await updateArticleFakeid(updatedTask.article_url, fixedFakeid);
     updatedTask.fakeid = fixedFakeid;
     if (updatedTask.id) {
-      await updateTask(updatedTask.id, { fakeid: fixedFakeid });
+      await updateCommentMonitorTask(updatedTask.id, { fakeid: fixedFakeid });
     }
   }
 
@@ -122,7 +123,54 @@ export async function syncMonitorTaskComments(task: MonitorTask): Promise<SyncTa
   if (updatedTask.comment_id !== commentId) {
     updatedTask.comment_id = commentId;
     if (updatedTask.id) {
-      await updateTask(updatedTask.id, { comment_id: commentId });
+      await updateCommentMonitorTask(updatedTask.id, { comment_id: commentId });
+    }
+  }
+
+  // 关键修复：从 HTML 中提取真实的 biz/mid/idx，回填 db.article stub。
+  // 用户粘贴 https://mp.weixin.qq.com/s/XXXXX 这种短链时，URL 不含
+  // __biz/mid/idx，parseArticleUrlMeta 会把 appmsgid 退化为 Date.now()，
+  // 直接走 appmsg_comment 接口必然返回 ret=-1。
+  if (htmlCache?.file) {
+    try {
+      const htmlText = await htmlCache.file.text();
+      const meta = extractArticleMeta(htmlText);
+      const realAppmsgid = meta.mid ? Number(meta.mid) : null;
+      const realItemidx = meta.idx ? Number(meta.idx) : null;
+
+      const stub = await db.article.where('link').equals(updatedTask.article_url).first();
+      if (stub) {
+        const patch: Partial<AppMsgExWithFakeID> = {};
+        if (realAppmsgid && realAppmsgid !== stub.appmsgid) {
+          patch.appmsgid = realAppmsgid;
+        }
+        if (realItemidx && realItemidx !== stub.itemidx) {
+          patch.itemidx = realItemidx;
+        }
+        if (realAppmsgid && realItemidx) {
+          const realAid = `${realAppmsgid}_${realItemidx}`;
+          if (realAid !== stub.aid) {
+            patch.aid = realAid;
+          }
+        }
+        if (Object.keys(patch).length > 0) {
+          await db.article
+            .where('link')
+            .equals(updatedTask.article_url)
+            .modify(article => {
+              Object.assign(article, patch);
+            });
+        }
+
+        if (patch.aid && patch.aid !== updatedTask.article_aid) {
+          updatedTask.article_aid = patch.aid;
+          if (updatedTask.id) {
+            await updateCommentMonitorTask(updatedTask.id, { article_aid: patch.aid });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[task-sync] extractArticleMeta failed:', err);
     }
   }
 
@@ -162,9 +210,14 @@ export async function syncMonitorTaskComments(task: MonitorTask): Promise<SyncTa
     }
   }
 
+  const syncedAt = Date.now();
   updatedTask.accumulated_comments = mergedComments;
+  updatedTask.last_sync_at = syncedAt;
   if (updatedTask.id) {
-    await updateTask(updatedTask.id, { accumulated_comments: mergedComments });
+    await updateCommentMonitorTask(updatedTask.id, {
+      accumulated_comments: mergedComments,
+      last_sync_at: syncedAt,
+    });
   }
 
   return {

@@ -68,6 +68,7 @@
                   {{ credential.added ? '已添加' : '添加公众号' }}
                 </UButton>
               </div>
+              <CredentialExpiryBar :timestamp="credential.timestamp" class="mt-3" />
             </div>
             <UButton
               v-if="isDev"
@@ -87,6 +88,7 @@
 <script setup lang="ts">
 import dayjs from 'dayjs';
 import { getArticleList, getArticleListWithCredential } from '~/apis';
+import CredentialExpiryBar from '~/components/global/CredentialExpiryBar.vue';
 import LoginModal from '~/components/modal/Login.vue';
 import toastFactory from '~/composables/toast';
 import useLoginCheck from '~/composables/useLoginCheck';
@@ -262,7 +264,7 @@ function connectWs() {
       retryTimer = null;
     }
   });
-  ws.addEventListener('message', async (evt) => {
+  ws.addEventListener('message', async evt => {
     try {
       const result: CredentialRaw[] = JSON.parse(evt.data);
       await processCredentialData(result);
