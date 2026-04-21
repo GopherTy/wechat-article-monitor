@@ -9,14 +9,13 @@ import { getHtmlCache, updateHtmlCache } from '~/store/v2/html';
 import type { Metadata } from '~/store/v2/metadata';
 import { updateMetadataCache } from '~/store/v2/metadata';
 import type { CommentResponse, ReplyResponse } from '~/types/comment';
-import type { ParsedCredential } from '~/types/credential';
 import type { Preferences } from '~/types/preferences';
+import { findValidCredential } from '~/utils/credentials';
 import { BaseDownloader } from '~/utils/download/BaseDownloader';
 import type { DownloadOptions } from './types';
 
 type DownloadType = 'html' | 'metadata' | 'comments' | 'fakeid';
 
-const credentials = useLocalStorage<ParsedCredential[]>('auto-detect-credentials:credentials', []);
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 
 export class Downloader extends BaseDownloader {
@@ -476,7 +475,7 @@ export class Downloader extends BaseDownloader {
 
     try {
       // 使用设置的 credentials 来抓取留言
-      const targetCredential = credentials.value.find(item => item.biz === fakeid && item.valid);
+      const targetCredential = findValidCredential(fakeid);
       if (!targetCredential) {
         throw new Error('目标公众号的 Credential 未设置');
       }
@@ -524,7 +523,7 @@ export class Downloader extends BaseDownloader {
 
     try {
       // 使用设置的 credentials 来抓取留言
-      const targetCredential = credentials.value.find(item => item.biz === fakeid && item.valid);
+      const targetCredential = findValidCredential(fakeid);
       if (!targetCredential) {
         throw new Error('目标公众号的 Credential 未设置');
       }

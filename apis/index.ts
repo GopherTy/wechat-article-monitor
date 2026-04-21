@@ -3,7 +3,6 @@ import { ACCOUNT_LIST_PAGE_SIZE, ARTICLE_LIST_PAGE_SIZE } from '~/config';
 import { updateArticleCache } from '~/store/v2/article';
 import { type MpAccount, updateLastUpdateTime } from '~/store/v2/info';
 import type { CommentResponse } from '~/types/comment';
-import type { ParsedCredential } from '~/types/credential';
 import type { ParsedProfileGetMsg, ProfileGetMsgResponse } from '~/types/profile_getmsg';
 import type {
   AccountInfo,
@@ -13,9 +12,9 @@ import type {
   PublishPage,
   SearchBizResponse,
 } from '~/types/types';
+import { findValidCredential } from '~/utils/credentials';
 
 const loginAccount = useLoginAccount();
-const credentials = useLocalStorage<ParsedCredential[]>('auto-detect-credentials:credentials', []);
 
 /**
  * 获取文章列表
@@ -135,7 +134,7 @@ export async function getComment(commentId: string) {
  * @param begin
  */
 export async function getArticleListWithCredential(fakeid: string, begin = 0) {
-  const targetCredential = credentials.value.find(item => item.biz === fakeid);
+  const targetCredential = findValidCredential(fakeid);
   if (!targetCredential) {
     throw new Error('目标公众号的 Credential 未设置');
   }

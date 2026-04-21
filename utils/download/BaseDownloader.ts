@@ -1,14 +1,13 @@
 import { sleep, timeout } from '#shared/utils/helpers';
 import usePreferences from '~/composables/usePreferences';
 import { PUBLIC_PROXY_LIST } from '~/config/public-proxy';
-import type { ParsedCredential } from '~/types/credential';
 import type { Preferences } from '~/types/preferences';
 import { bestConcurrencyCount } from '~/utils';
+import { findValidCredential } from '~/utils/credentials';
 import { DEFAULT_OPTIONS } from './constants';
 import { ProxyManager } from './ProxyManager';
 import type { Callback, DownloaderStatus, DownloadOptions } from './types';
 
-const credentials = useLocalStorage<ParsedCredential[]>('auto-detect-credentials:credentials', []);
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 
 // 下载器
@@ -150,7 +149,7 @@ export class BaseDownloader {
 
       // 使用设置的 credentials 来抓取元数据
       if (withCredential) {
-        const targetCredential = credentials.value.find(item => item.biz === fakeid && item.valid);
+        const targetCredential = findValidCredential(fakeid);
         if (targetCredential) {
           headers.cookie = `pass_ticket=${targetCredential.pass_ticket};wap_sid2=${targetCredential.wap_sid2}`;
         }
@@ -189,8 +188,7 @@ export class BaseDownloader {
 
   // 当获取阅读量和留言数据时，需要验证 Credential 是否设置正确
   protected validateCredential(fakeid: string): void {
-    console.log('validateCredential', fakeid, credentials);
-    const targetCredential = credentials.value.find(item => item.biz === fakeid && item.valid);
+    const targetCredential = findValidCredential(fakeid);
     if (!targetCredential) {
       throw new Error('目标公众号的 Credential 未设置');
     }
