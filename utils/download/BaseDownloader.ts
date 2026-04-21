@@ -189,6 +189,7 @@ export class BaseDownloader {
 
   // 当获取阅读量和留言数据时，需要验证 Credential 是否设置正确
   protected validateCredential(fakeid: string): void {
+    console.log('validateCredential', fakeid, credentials);
     const targetCredential = credentials.value.find(item => item.biz === fakeid && item.valid);
     if (!targetCredential) {
       throw new Error('目标公众号的 Credential 未设置');
