@@ -164,6 +164,8 @@ export default function useCommentMonitor() {
       source: 'auto',
       source_fakeid: watch.fakeid,
       last_sync_at: 0,
+      comment_first_seen_at: {},
+      comment_shielded_at: {},
     };
     const id = await createCommentMonitorTask(task);
     const created = { ...task, id };
@@ -213,6 +215,8 @@ export default function useCommentMonitor() {
         auto_track_enabled: true,
         source: 'manual',
         last_sync_at: 0,
+        comment_first_seen_at: {},
+        comment_shielded_at: {},
       };
 
       const id = await createCommentMonitorTask(task);

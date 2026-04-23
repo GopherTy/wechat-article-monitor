@@ -6,8 +6,8 @@ import {
 } from '~/store/v2/commentMonitorTask';
 import { syncMonitorTaskComments } from '~/utils/monitor/task-sync';
 
-/** 默认刷新周期：60 秒 */
-const DEFAULT_INTERVAL_MS = 60 * 1000;
+/** 默认刷新周期：30 秒 */
+const DEFAULT_INTERVAL_MS = 30 * 1000;
 /** 凭证将过期的提醒周期：25 分钟 */
 const CREDENTIAL_REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 

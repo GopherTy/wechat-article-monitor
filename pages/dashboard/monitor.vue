@@ -2,6 +2,7 @@
 import dayjs from 'dayjs';
 import { getAccountList } from '~/apis';
 import CommentPreviewPopover from '~/components/dashboard/CommentPreviewPopover.vue';
+import ShieldedCommentsPopover from '~/components/dashboard/ShieldedCommentsPopover.vue';
 import useAccountDiscovery from '~/composables/useAccountDiscovery';
 import useCommentMonitor from '~/composables/useCommentMonitor';
 import useMonitor from '~/composables/useMonitor';
@@ -333,7 +334,7 @@ onUnmounted(() => {
                 </UButton>
               </div>
             </div>
-            <p class="text-xs text-slate-400 mb-3">每 1 分钟刷新一次评论，每条任务持续 1.5 小时；到期自动最终采集并导出 Markdown / PDF。</p>
+            <p class="text-xs text-slate-400 mb-3">每 30 秒刷新一次评论，每条任务持续 1.5 小时；到期自动最终采集并导出 Markdown / PDF。</p>
 
             <!-- 手动添加文章 -->
             <div class="flex gap-2 mb-4">
@@ -483,9 +484,23 @@ onUnmounted(() => {
                   <div class="text-sm flex items-center gap-2">
                     <template v-if="(task.shielded_comments ?? []).length > 0">
                       <UIcon name="i-lucide:shield-alert" class="text-rose-500" />
-                      <span class="text-rose-500 font-medium">
-                        被盾 <span class="font-mono">{{ task.shielded_comments.length }}</span> 条
-                      </span>
+                      <UPopover
+                        mode="hover"
+                        :open-delay="100"
+                        :close-delay="200"
+                        :popper="{ placement: 'top' }"
+                      >
+                        <span class="text-rose-500 font-medium cursor-help underline decoration-dotted decoration-rose-300 underline-offset-2">
+                          被盾 <span class="font-mono">{{ task.shielded_comments.length }}</span> 条
+                        </span>
+                        <template #panel>
+                          <ShieldedCommentsPopover
+                            :comments="task.shielded_comments"
+                            :first-seen-at="task.comment_first_seen_at"
+                            :shielded-at="task.comment_shielded_at"
+                          />
+                        </template>
+                      </UPopover>
                     </template>
                     <template v-else>
                       <UIcon name="i-lucide:check-circle-2" class="text-emerald-500" />

@@ -211,12 +211,39 @@ export async function syncMonitorTaskComments(task: CommentMonitorTask): Promise
   }
 
   const syncedAt = Date.now();
+
+  // 维护 first_seen_at / shielded_at：每 30s 同步窗口为一个节点。
+  // - 本轮出现的评论：若未记录 first_seen_at 则补上；若曾被标记 shielded（说明又活回来）则清除。
+  // - 历史累积但本轮缺席的评论：若未记录 shielded_at 则记为本次同步时刻。
+  const firstSeenAt: Record<string, number> = { ...(updatedTask.comment_first_seen_at ?? {}) };
+  const shieldedAt: Record<string, number> = { ...(updatedTask.comment_shielded_at ?? {}) };
+  const latestIds = new Set(latestComments.map(c => c.content_id));
+
+  for (const comment of latestComments) {
+    if (firstSeenAt[comment.content_id] === undefined) {
+      firstSeenAt[comment.content_id] = syncedAt;
+    }
+    if (shieldedAt[comment.content_id] !== undefined) {
+      delete shieldedAt[comment.content_id];
+    }
+  }
+
+  for (const comment of mergedComments) {
+    if (!latestIds.has(comment.content_id) && shieldedAt[comment.content_id] === undefined) {
+      shieldedAt[comment.content_id] = syncedAt;
+    }
+  }
+
   updatedTask.accumulated_comments = mergedComments;
   updatedTask.last_sync_at = syncedAt;
+  updatedTask.comment_first_seen_at = firstSeenAt;
+  updatedTask.comment_shielded_at = shieldedAt;
   if (updatedTask.id) {
     await updateCommentMonitorTask(updatedTask.id, {
       accumulated_comments: mergedComments,
       last_sync_at: syncedAt,
+      comment_first_seen_at: firstSeenAt,
+      comment_shielded_at: shieldedAt,
     });
   }
 

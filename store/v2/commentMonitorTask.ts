@@ -30,6 +30,16 @@ export interface CommentMonitorTask {
   source_fakeid?: string;
   /** 最近一次成功拉取评论的时间戳；0 表示还未同步过 */
   last_sync_at: number;
+  /**
+   * 评论 content_id → 首次被监控到的时间戳（毫秒）。
+   * 用于计算"存活时长"。
+   */
+  comment_first_seen_at?: Record<string, number>;
+  /**
+   * 评论 content_id → 首次监控不到的时间戳（毫秒）。
+   * 评论若再次出现会被清除；finalize 时仍存在的视为"被盾时间"。
+   */
+  comment_shielded_at?: Record<string, number>;
 }
 
 export async function createCommentMonitorTask(task: Omit<CommentMonitorTask, 'id'>): Promise<number> {
