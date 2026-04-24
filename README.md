@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="./assets/screenshots/monitor-dashboard.jpg" alt="监控面板截图" width="900">
+  <img src="./assets/screenshots/monitor-dashboard.png" alt="监控面板截图" width="900">
 </p>
 
 ---
