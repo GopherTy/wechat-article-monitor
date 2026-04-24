@@ -5,7 +5,7 @@
 <h1 align="center">wechat-article-monitor</h1>
 
 <p align="center">
-  自动微信公众号文章和评论监控与导出工具</b>
+  微信公众号文章 / 评论自动化监控与导出工具
 </p>
 
 <p align="center">
