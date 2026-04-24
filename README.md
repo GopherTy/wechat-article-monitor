@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo.svg" width="120" alt="logo">
+  <img src="./assets/logo.png" width="120" alt="logo">
 </p>
 
 <h1 align="center">wechat-article-monitor</h1>
