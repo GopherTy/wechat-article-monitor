@@ -15,6 +15,10 @@
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6.svg" alt="TypeScript">
 </p>
 
+<p align="center">
+  <img src="./assets/screenshots/monitor-dashboard.png" alt="监控面板截图" width="900">
+</p>
+
 ---
 
 ## 简介
