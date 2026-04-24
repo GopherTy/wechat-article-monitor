@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo.png" width="120" alt="logo">
+  <img src="./assets/logo.png" width="300" alt="logo">
 </p>
 
 <h1 align="center">wechat-article-monitor</h1>
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="./assets/screenshots/monitor-dashboard.png" alt="监控面板截图" width="900">
+  <img src="./assets/screenshots/monitor-dashboard.jpg" alt="监控面板截图" width="900">
 </p>
 
 ---
