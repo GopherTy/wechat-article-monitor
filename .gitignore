@@ -32,3 +32,8 @@ samples/**/output
 
 # Credential service runtime data
 credential-service/data/
+
+# AI
+.cursor
+openspec
+docs
