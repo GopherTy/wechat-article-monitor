@@ -1,106 +1,50 @@
-<p align="center">
-  <img src="./assets/logo.svg" alt="Logo">
-</p>
+# wechat-article-monitor
 
-# wechat-article-exporter
+> 微信公众号 **文章监控 + 评论监控** 个人定制版。
+>
+> 本项目基于 [wechat-article/wechat-article-exporter](https://github.com/wechat-article/wechat-article-exporter) (MIT License) 二次开发，
+> 在原项目的文章批量导出能力之上，新增了一整套**长期运行的监控工作流**与配套的 credential 抓包服务。
+>
+> 感谢原作者 [@Jock](https://github.com/wechat-article) 的优秀工作。本仓库仅用于个人/团队场景，不接受外部 PR 与 issue。
 
-![GitHub stars]
-![GitHub forks]
-![GitHub License]
-![Package Version]
+---
 
+## 在原项目之上新增的能力
 
-一款在线的 **微信公众号文章批量下载** 工具，支持导出阅读量与评论数据，无需搭建任何环境，可通过 [在线网站] 使用，同时也支持 docker 私有化部署和 Cloudflare 部署。
+- **账号文章发现 (Account Discovery)**：长期轮询关注的公众号，自动入库新文章
+  - `composables/useAccountDiscovery.ts`、`utils/monitor/AccountDiscoveryPoller.ts`
+- **文章评论监控 (Comment Monitor)**：对入库文章进行持续评论抓取与状态追踪（首次出现时间、被屏蔽时间）
+  - `composables/useCommentMonitor.ts`、`utils/monitor/CommentMonitorScheduler.ts`
+  - `components/dashboard/CommentPreviewPopover.vue`、`ShieldedCommentsPopover.vue`
+- **统一监控调度面板**：`pages/dashboard/monitor.vue` + `composables/useMonitor.ts`
+- **Credential 抓包服务**：基于 mitmproxy 的本地 Python 服务，自动捕获并下发凭据
+  - `credential-service/credential.py`
+  - `server/api/credential/*`、`server/plugins/credential-service.ts`
+  - 前端凭据有效期提示条 `components/global/CredentialExpiryBar.vue`
+- **PDF 导出**：`server/api/web/pdf/generate.post.ts`（基于 puppeteer）
+- **Markdown 导出质量改进**
+- **OpenSpec / Superpowers 工作流**：`openspec/`、`docs/superpowers/`、`.cursor/`
 
-支持下载各种文件格式，其中 HTML 格式可100%还原文章排版与样式。
+详细的设计文档见 `openspec/specs/` 与 `docs/superpowers/specs/`。
 
-交流群(QQ): `991482155`
+## 快速开始
 
-## :bell: 重要告知：项目域名调整
-项目域名调整如下：
+```bash
+corepack enable && corepack prepare yarn@1.22.22 --activate
+yarn
 
-|     | 下载站                            | 文档站                        |
-|-----|--------------------------------|----------------------------|
-| 调整后 | https://down.mptext.top        | https://docs.mptext.top    |
-| 调整前 | https://exporter.wxdown.online | https://docs.wxdown.online |
+cp .env.example .env   # 按需要填写 NUXT_AGGRID_LICENSE / CREDENTIAL_MITM_PORT 等
+yarn dev
+```
 
-具体细节可以查看 [这里](https://docs.mptext.top/misc/domain.html)。
+Credential 抓包服务依赖 Python + mitmproxy，详见 `credential-service/requirements.txt`。
 
+## 致谢与许可
 
-## :books: 如何使用？
+- 原项目：[wechat-article/wechat-article-exporter](https://github.com/wechat-article/wechat-article-exporter) — MIT
+- 原项目原理思路：[1061700625/WeChat_Article](https://github.com/1061700625/WeChat_Article)
+- 本仓库沿用 [MIT License](./LICENSE)；版权声明同时保留原作者与本仓库维护者。
 
-该工具的使用教程已移至 [文档站点](https://docs.mptext.top)。
+## 声明
 
-
-## :dart: 特性
-
-- [x] 搜索公众号，支持关键字搜索
-- [x] 支持导出 html/json/excel/txt/md/docx 格式(html 格式打包了图片和样式文件，能够保证100%还原文章样式)
-- [x] 缓存文章列表数据，减少接口请求次数
-- [x] 支持文章过滤，包括作者、标题、发布时间、原创标识、所属合集等
-- [x] 支持合集下载
-- [x] 支持图片分享消息
-- [x] 支持视频分享消息
-- [x] 支持导出评论、评论回复、阅读量、转发量等数据 (需要抓包获取 credentials 信息，[查看操作步骤](https://docs.mptext.top/advanced/wxdown-service.html))
-- [x] 支持 Docker 部署
-- [x] 支持 Cloudflare 部署
-- [x] 开放 API 接口
-
-
-## :heart: 感谢
-
-- 感谢 [Deno Deploy]、[Cloudflare Workers] 提供免费托管服务
-- 感谢 [WeChat_Article] 项目提供原理思路
-
-
-## :star: 支持
-
-如果你觉得本项目帮助到了你，请给作者一个免费的 Star，感谢你的支持！
-
-
-## :bulb: 原理
-
-在公众号后台写文章时支持搜索其他公众号的文章功能，以此来实现抓取指定公众号所有文章的目的。
-
-
-## :memo: 许可
-
-MIT
-
-## :red_circle: 声明
-
-本程序承诺，不会利用您扫码登录的公众号进行任何形式的私有爬虫，也就是说不存在把你的账号作为公共账号为别人爬取文章的行为，也不存在类似账号池的东西。
-
-您的公众号只会服务于您自己的抓取文章的目的。
-
-通过本程序获取的公众号文章内容，版权归文章原作者所有，请合理使用。若发现侵权行为，请联系我们处理。
-
-
-## :chart_with_upwards_trend: Star 历史
-
-[![Star History Chart]][Star History Chart Link]
-
-
-
-<!-- Definitions -->
-
-[GitHub stars]: https://img.shields.io/github/stars/wechat-article/wechat-article-exporter?style=social&label=Star&style=plastic
-
-[GitHub forks]: https://img.shields.io/github/forks/wechat-article/wechat-article-exporter?style=social&label=Fork&style=plastic
-
-[GitHub License]: https://img.shields.io/github/license/wechat-article/wechat-article-exporter?label=License
-
-[Package Version]: https://img.shields.io/github/package-json/v/wechat-article/wechat-article-exporter
-
-
-[Deno Deploy]: https://deno.com/deploy
-
-[Cloudflare Workers]: https://workers.cloudflare.com
-
-[Wechat_Article]: https://github.com/1061700625/WeChat_Article
-
-[Star History Chart]: https://api.star-history.com/svg?repos=wechat-article/wechat-article-exporter&type=Timeline
-
-[Star History Chart Link]: https://star-history.com/#wechat-article/wechat-article-exporter&Timeline
-
-[在线网站]: https://down.mptext.top
+通过本程序获取的公众号文章与评论内容，版权归原作者所有，请合理合规使用。
