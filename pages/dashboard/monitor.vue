@@ -134,6 +134,11 @@ function getTrackingProgress(task: CommentMonitorTask) {
   return Math.round((elapsed / total) * 100);
 }
 
+function getLiveShieldedComments(task: CommentMonitorTask): Comment[] {
+  const map = task.comment_shielded_at ?? {};
+  return (task.accumulated_comments ?? []).filter(c => map[c.content_id] !== undefined);
+}
+
 function getRemainingTimeText(task: CommentMonitorTask) {
   const remainMs = Math.max(0, task.tracking_end_at - Date.now());
   const remainMin = Math.ceil(remainMs / 60000);
@@ -439,6 +444,27 @@ onUnmounted(() => {
                         </template>
                       </UPopover>
                     </span>
+                    <template v-if="getLiveShieldedComments(task).length > 0">
+                      <span class="text-slate-300">·</span>
+                      <UPopover
+                        mode="hover"
+                        :open-delay="100"
+                        :close-delay="200"
+                        :popper="{ placement: 'top' }"
+                      >
+                        <span class="text-rose-500 font-medium cursor-help underline decoration-dotted decoration-rose-300 underline-offset-2 inline-flex items-center gap-1">
+                          <UIcon name="i-lucide:shield-alert" class="text-rose-500" />
+                          被盾 <span class="font-mono">{{ getLiveShieldedComments(task).length }}</span> 条
+                        </span>
+                        <template #panel>
+                          <ShieldedCommentsPopover
+                            :comments="getLiveShieldedComments(task)"
+                            :first-seen-at="task.comment_first_seen_at"
+                            :shielded-at="task.comment_shielded_at"
+                          />
+                        </template>
+                      </UPopover>
+                    </template>
                     <span class="text-slate-300">·</span>
                     <span class="text-slate-500 font-mono">{{ getRemainingTimeText(task) }}</span>
                   </div>
