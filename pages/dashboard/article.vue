@@ -27,7 +27,7 @@ import { articleDeleted, getArticleCache, updateArticleStatus } from '~/store/v2
 import { getCommentCache } from '~/store/v2/comment';
 import { getDebugCache } from '~/store/v2/debug';
 import { getHtmlCache } from '~/store/v2/html';
-import { type MpAccount } from '~/store/v2/info';
+import { getAllInfo, type MpAccount } from '~/store/v2/info';
 import { getMetadataCache, type Metadata } from '~/store/v2/metadata';
 import type { Preferences } from '~/types/preferences';
 import type { AppMsgExWithFakeID } from '~/types/types';
@@ -361,8 +361,20 @@ const loading = ref(false);
 // 只能选择单个账号
 const selectedAccount = ref<MpAccount | undefined>();
 
+// 页面加载时自动选择第一个账号
+onMounted(async () => {
+  const accounts = await getAllInfo();
+  if (accounts.length > 0 && !selectedAccount.value) {
+    // 按文章数降序排列，选择文章最多的账号
+    accounts.sort((a, b) => (a.articles > b.articles ? -1 : 1));
+    selectedAccount.value = accounts[0];
+  }
+});
+
 watch(selectedAccount, newVal => {
-  switchTableData(newVal!.fakeid).catch(() => {});
+  if (newVal) {
+    switchTableData(newVal.fakeid).catch(() => {});
+  }
 });
 
 async function switchTableData(fakeid: string) {

@@ -62,6 +62,8 @@ EXPOSE 3000
 
 # 设置环境变量：生产模式，监听所有接口
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
+ENV DATABASE_URL=
+ENV NUXT_PUBLIC_STORAGE_MODE=indexeddb
 
 # 启动命令：运行 Nitro 生成的服务器
 ENTRYPOINT ["node", "server/index.mjs"]

@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       aggridLicense: process.env.NUXT_AGGRID_LICENSE,
+      storageMode: process.env.NUXT_PUBLIC_STORAGE_MODE || 'indexeddb',
       sentry: {
         dsn: process.env.NUXT_SENTRY_DSN,
       },

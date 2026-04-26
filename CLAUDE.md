@@ -74,3 +74,34 @@ Nuxt UI v2 + TailwindCSS 提供组件和样式。AG Grid Enterprise 用于文章
 - `NITRO_KV_BASE` — KV 数据目录（默认：`.data/kv`）
 - `NUXT_DEBUG_MP_REQUEST` — 开启微信代理请求调试（仅开发环境）
 - `DEBUG_KEY` — 调试端点认证密钥
+- `DATABASE_URL` — PostgreSQL 连接字符串（可选，不配置则使用 IndexedDB）
+- `NUXT_PUBLIC_STORAGE_MODE` — 存储模式（`indexeddb` 或 `postgres`，默认 `indexeddb`）
+
+## 数据存储架构
+
+项目支持两种存储后端：
+
+### IndexedDB（默认）
+- 通过 Dexie.js 存储在浏览器本地
+- 数据完全在客户端侧，无需后端数据库
+- 适用于单设备使用场景
+
+### PostgreSQL（可选）
+- 通过 Drizzle ORM + postgres.js 连接
+- 数据存储在服务端 PostgreSQL 数据库
+- 支持跨设备/跨浏览器数据共享
+- Schema 定义: `server/db/schema/`
+- CRUD API: `server/api/db/`
+- 连接管理: `server/db/connection.ts`
+
+### 存储适配器
+- `store/v2/adapter.ts` — 统一接口定义
+- `store/v2/adapters/indexeddb-adapter.ts` — IndexedDB 实现
+- `store/v2/adapters/pg-adapter.ts` — PostgreSQL 实现（通过 API 调用）
+- `store/v2/adapters/index.ts` — 适配器工厂（根据 `storage_mode` 选择）
+
+### 数据迁移
+- `composables/useMigration.ts` — 双向迁移逻辑（IndexedDB ↔ PostgreSQL）
+- `components/MigrationPanel.vue` — 迁移 UI 面板
+- 迁移入口在 设置 页面
+

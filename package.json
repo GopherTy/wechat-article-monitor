@@ -10,7 +10,11 @@
     "format": "biome check --write",
     "postinstall": "nuxt prepare",
     "docker:build": "docker build --build-arg VERSION=$npm_package_version -t ghcr.io/wechat-article/wechat-article-exporter:$npm_package_version .",
-    "docker:publish": "docker push ghcr.io/wechat-article/wechat-article-exporter:$npm_package_version"
+    "docker:publish": "docker push ghcr.io/wechat-article/wechat-article-exporter:$npm_package_version",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@ag-grid-community/locale": "^34.0.0",
@@ -32,6 +36,7 @@
     "defu": "^6.1.4",
     "dexie": "^4.0.11",
     "dompurify": "^3.2.5",
+    "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "happy-dom": "^20.1.0",
@@ -45,6 +50,7 @@
     "nuxt-monaco-editor": "1.4.0",
     "nuxt-umami": "3.2.1",
     "p-queue": "^8.0.1",
+    "postgres": "^3.4.9",
     "puppeteer": "^24.40.0",
     "turndown": "^7.2.0",
     "uuid": "^11.0.3",
@@ -57,6 +63,7 @@
     "@biomejs/biome": "2.3.8",
     "@types/file-saver": "^2.0.7",
     "@types/turndown": "^5.0.5",
+    "drizzle-kit": "^0.31.10",
     "prettier": "^3.5.2",
     "tailwindcss-debug-screens": "^2.2.1",
     "typescript": "^5.5.3"
