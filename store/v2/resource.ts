@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface ResourceAsset {
   fakeid: string;
@@ -11,10 +11,8 @@ export interface ResourceAsset {
  * @param resource 缓存
  */
 export async function updateResourceCache(resource: ResourceAsset): Promise<boolean> {
-  return db.transaction('rw', 'resource', async () => {
-    await db.resource.put(resource);
-    return true;
-  });
+  await getStoreAdapter().putResource(resource);
+  return true;
 }
 
 /**
@@ -22,5 +20,5 @@ export async function updateResourceCache(resource: ResourceAsset): Promise<bool
  * @param url
  */
 export async function getResourceCache(url: string): Promise<ResourceAsset | undefined> {
-  return db.resource.get(url);
+  return getStoreAdapter().getResource(url);
 }

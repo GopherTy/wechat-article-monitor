@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface CommentAsset {
   fakeid: string;
@@ -12,10 +12,8 @@ export interface CommentAsset {
  * @param comment 缓存
  */
 export async function updateCommentCache(comment: CommentAsset): Promise<boolean> {
-  return db.transaction('rw', 'comment', async () => {
-    await db.comment.put(comment);
-    return true;
-  });
+  await getStoreAdapter().putComment(comment);
+  return true;
 }
 
 /**
@@ -23,5 +21,5 @@ export async function updateCommentCache(comment: CommentAsset): Promise<boolean
  * @param url
  */
 export async function getCommentCache(url: string): Promise<CommentAsset | undefined> {
-  return db.comment.get(url);
+  return getStoreAdapter().getComment(url);
 }

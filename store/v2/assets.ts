@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 interface Asset {
   url: string;
@@ -13,10 +13,8 @@ export type { Asset };
  * @param asset
  */
 export async function updateAssetCache(asset: Asset): Promise<boolean> {
-  return db.transaction('rw', 'asset', () => {
-    db.asset.put(asset);
-    return true;
-  });
+  await getStoreAdapter().putAsset(asset);
+  return true;
 }
 
 /**
@@ -24,6 +22,5 @@ export async function updateAssetCache(asset: Asset): Promise<boolean> {
  * @param url
  */
 export async function getAssetCache(url: string): Promise<Asset | undefined> {
-  db.transaction('r', 'asset', () => {});
-  return db.asset.get(url);
+  return getStoreAdapter().getAsset(url);
 }

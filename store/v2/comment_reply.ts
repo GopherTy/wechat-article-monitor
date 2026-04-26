@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface CommentReplyAsset {
   fakeid: string;
@@ -13,10 +13,8 @@ export interface CommentReplyAsset {
  * @param reply 缓存
  */
 export async function updateCommentReplyCache(reply: CommentReplyAsset): Promise<boolean> {
-  return db.transaction('rw', 'comment_reply', async () => {
-    await db.comment_reply.put(reply, `${reply.url}:${reply.contentID}`);
-    return true;
-  });
+  await getStoreAdapter().putCommentReply(reply);
+  return true;
 }
 
 /**
@@ -25,5 +23,5 @@ export async function updateCommentReplyCache(reply: CommentReplyAsset): Promise
  * @param contentID
  */
 export async function getCommentReplyCache(url: string, contentID: string): Promise<CommentReplyAsset | undefined> {
-  return db.comment_reply.get(`${url}:${contentID}`);
+  return getStoreAdapter().getCommentReply(url, contentID);
 }

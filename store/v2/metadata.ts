@@ -1,5 +1,5 @@
 import type { ArticleMetadata } from '~/utils/download/types';
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export type Metadata = ArticleMetadata & {
   fakeid: string;
@@ -12,10 +12,8 @@ export type Metadata = ArticleMetadata & {
  * @param metadata
  */
 export async function updateMetadataCache(metadata: Metadata): Promise<boolean> {
-  return db.transaction('rw', 'metadata', async () => {
-    await db.metadata.put(metadata);
-    return true;
-  });
+  await getStoreAdapter().putMetadata(metadata);
+  return true;
 }
 
 /**
@@ -23,5 +21,5 @@ export async function updateMetadataCache(metadata: Metadata): Promise<boolean> 
  * @param url
  */
 export async function getMetadataCache(url: string): Promise<Metadata | undefined> {
-  return db.metadata.get(url);
+  return getStoreAdapter().getMetadata(url);
 }

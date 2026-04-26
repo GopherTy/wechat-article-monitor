@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface ResourceMapAsset {
   fakeid: string;
@@ -11,10 +11,8 @@ export interface ResourceMapAsset {
  * @param resourceMap 缓存
  */
 export async function updateResourceMapCache(resourceMap: ResourceMapAsset): Promise<boolean> {
-  return db.transaction('rw', 'resource-map', async () => {
-    await db['resource-map'].put(resourceMap);
-    return true;
-  });
+  await getStoreAdapter().putResourceMap(resourceMap);
+  return true;
 }
 
 /**
@@ -22,5 +20,5 @@ export async function updateResourceMapCache(resourceMap: ResourceMapAsset): Pro
  * @param url
  */
 export async function getResourceMapCache(url: string): Promise<ResourceMapAsset | undefined> {
-  return db['resource-map'].get(url);
+  return getStoreAdapter().getResourceMap(url);
 }

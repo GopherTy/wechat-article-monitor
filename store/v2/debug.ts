@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface DebugAsset {
   type: string;
@@ -13,10 +13,8 @@ export interface DebugAsset {
  * @param html 缓存
  */
 export async function updateDebugCache(html: DebugAsset): Promise<boolean> {
-  return db.transaction('rw', 'debug', async () => {
-    await db.debug.put(html);
-    return true;
-  });
+  await getStoreAdapter().putDebug(html);
+  return true;
 }
 
 /**
@@ -24,9 +22,9 @@ export async function updateDebugCache(html: DebugAsset): Promise<boolean> {
  * @param url
  */
 export async function getDebugCache(url: string): Promise<DebugAsset | undefined> {
-  return db.debug.get(url);
+  return getStoreAdapter().getDebug(url);
 }
 
 export async function getDebugInfo(): Promise<DebugAsset[]> {
-  return db.debug.toArray();
+  return getStoreAdapter().getAllDebug();
 }

@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface MpAccount {
   fakeid: string;
@@ -25,45 +25,43 @@ export interface MpAccount {
  * @param mpAccount
  */
 export async function updateInfoCache(mpAccount: MpAccount): Promise<boolean> {
-  return db.transaction('rw', 'info', async () => {
-    let infoCache = await db.info.get(mpAccount.fakeid);
-    if (infoCache) {
-      if (mpAccount.completed) {
-        infoCache.completed = mpAccount.completed;
-      }
-      infoCache.count += mpAccount.count;
-      infoCache.articles += mpAccount.articles;
-      infoCache.nickname = mpAccount.nickname;
-      infoCache.round_head_img = mpAccount.round_head_img;
-      infoCache.total_count = mpAccount.total_count;
-      infoCache.update_time = Math.round(Date.now() / 1000);
-    } else {
-      infoCache = {
-        fakeid: mpAccount.fakeid,
-        completed: mpAccount.completed,
-        count: mpAccount.count,
-        articles: mpAccount.articles,
-        nickname: mpAccount.nickname,
-        round_head_img: mpAccount.round_head_img,
-        total_count: mpAccount.total_count,
-        create_time: Math.round(Date.now() / 1000),
-        update_time: Math.round(Date.now() / 1000),
-      };
+  const adapter = getStoreAdapter();
+  let infoCache = await adapter.getAccount(mpAccount.fakeid);
+  if (infoCache) {
+    if (mpAccount.completed) {
+      infoCache.completed = mpAccount.completed;
     }
-    db.info.put(infoCache);
-    return true;
-  });
+    infoCache.count += mpAccount.count;
+    infoCache.articles += mpAccount.articles;
+    infoCache.nickname = mpAccount.nickname;
+    infoCache.round_head_img = mpAccount.round_head_img;
+    infoCache.total_count = mpAccount.total_count;
+    infoCache.update_time = Math.round(Date.now() / 1000);
+  } else {
+    infoCache = {
+      fakeid: mpAccount.fakeid,
+      completed: mpAccount.completed,
+      count: mpAccount.count,
+      articles: mpAccount.articles,
+      nickname: mpAccount.nickname,
+      round_head_img: mpAccount.round_head_img,
+      total_count: mpAccount.total_count,
+      create_time: Math.round(Date.now() / 1000),
+      update_time: Math.round(Date.now() / 1000),
+    };
+  }
+  await adapter.putAccount(infoCache);
+  return true;
 }
 
 export async function updateLastUpdateTime(fakeid: string): Promise<boolean> {
-  return db.transaction('rw', 'info', async () => {
-    let infoCache = await db.info.get(fakeid);
-    if (infoCache) {
-      infoCache.last_update_time = Math.round(Date.now() / 1000);
-      db.info.put(infoCache);
-    }
-    return true;
-  });
+  const adapter = getStoreAdapter();
+  let infoCache = await adapter.getAccount(fakeid);
+  if (infoCache) {
+    infoCache.last_update_time = Math.round(Date.now() / 1000);
+    await adapter.putAccount(infoCache);
+  }
+  return true;
 }
 
 /**
@@ -71,11 +69,11 @@ export async function updateLastUpdateTime(fakeid: string): Promise<boolean> {
  * @param fakeid
  */
 export async function getInfoCache(fakeid: string): Promise<MpAccount | undefined> {
-  return db.info.get(fakeid);
+  return getStoreAdapter().getAccount(fakeid);
 }
 
 export async function getAllInfo(): Promise<MpAccount[]> {
-  return db.info.toArray();
+  return getStoreAdapter().getAllAccounts();
 }
 
 // 获取公众号的名称

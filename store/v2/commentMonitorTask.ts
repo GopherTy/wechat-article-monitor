@@ -1,5 +1,5 @@
 import type { Comment } from '~/types/comment';
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface CommentMonitorTaskStats {
   read_num?: number;
@@ -43,27 +43,27 @@ export interface CommentMonitorTask {
 }
 
 export async function createCommentMonitorTask(task: Omit<CommentMonitorTask, 'id'>): Promise<number> {
-  return db.comment_monitor_task.add(task as CommentMonitorTask) as Promise<number>;
+  return getStoreAdapter().createCommentMonitorTask(task);
 }
 
 export async function getAllCommentMonitorTasks(): Promise<CommentMonitorTask[]> {
-  return db.comment_monitor_task.orderBy('created_at').reverse().toArray();
+  return getStoreAdapter().getAllCommentMonitorTasks();
 }
 
 export async function getCommentMonitorTasksByStatus(
   status: CommentMonitorTask['status']
 ): Promise<CommentMonitorTask[]> {
-  return db.comment_monitor_task.where('status').equals(status).toArray();
+  return getStoreAdapter().getCommentMonitorTasksByStatus(status);
 }
 
 export async function getCommentMonitorTasksByFakeid(fakeid: string): Promise<CommentMonitorTask[]> {
-  return db.comment_monitor_task.where('fakeid').equals(fakeid).toArray();
+  return getStoreAdapter().getCommentMonitorTasksByFakeid(fakeid);
 }
 
 export async function updateCommentMonitorTask(id: number, changes: Partial<CommentMonitorTask>): Promise<void> {
-  await db.comment_monitor_task.update(id, changes);
+  await getStoreAdapter().updateCommentMonitorTask(id, changes);
 }
 
 export async function deleteCommentMonitorTask(id: number): Promise<void> {
-  await db.comment_monitor_task.delete(id);
+  await getStoreAdapter().deleteCommentMonitorTask(id);
 }

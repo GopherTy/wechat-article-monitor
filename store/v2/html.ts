@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface HtmlAsset {
   fakeid: string;
@@ -13,10 +13,8 @@ export interface HtmlAsset {
  * @param html 缓存
  */
 export async function updateHtmlCache(html: HtmlAsset): Promise<boolean> {
-  return db.transaction('rw', 'html', async () => {
-    await db.html.put(html);
-    return true;
-  });
+  await getStoreAdapter().putHtml(html);
+  return true;
 }
 
 /**
@@ -24,5 +22,5 @@ export async function updateHtmlCache(html: HtmlAsset): Promise<boolean> {
  * @param url
  */
 export async function getHtmlCache(url: string): Promise<HtmlAsset | undefined> {
-  return db.html.get(url);
+  return getStoreAdapter().getHtml(url);
 }

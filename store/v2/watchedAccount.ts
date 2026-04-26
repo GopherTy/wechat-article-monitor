@@ -1,4 +1,4 @@
-import { db } from './db';
+import { getStoreAdapter } from './adapters';
 
 export interface WatchedAccount {
   fakeid: string;
@@ -15,21 +15,21 @@ export interface WatchedAccount {
 }
 
 export async function getAllWatchedAccounts(): Promise<WatchedAccount[]> {
-  return db.watched_account.toArray();
+  return getStoreAdapter().getAllWatchedAccounts();
 }
 
 export async function getEnabledWatchedAccounts(): Promise<WatchedAccount[]> {
-  return db.watched_account.filter(w => w.enabled).toArray();
+  return getStoreAdapter().getEnabledWatchedAccounts();
 }
 
 export async function addWatchedAccount(watch: WatchedAccount): Promise<void> {
-  await db.watched_account.put(watch);
+  await getStoreAdapter().putWatchedAccount(watch);
 }
 
 export async function removeWatchedAccount(fakeid: string): Promise<void> {
-  await db.watched_account.delete(fakeid);
+  await getStoreAdapter().removeWatchedAccount(fakeid);
 }
 
 export async function updateWatchedAccount(fakeid: string, changes: Partial<WatchedAccount>): Promise<void> {
-  await db.watched_account.update(fakeid, changes);
+  await getStoreAdapter().updateWatchedAccount(fakeid, changes);
 }
