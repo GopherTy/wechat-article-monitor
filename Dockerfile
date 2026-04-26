@@ -30,12 +30,11 @@ FROM node:22-slim
 ARG VERSION=unknown
 
 # 添加 LABEL 元数据
-LABEL maintainer="findsource@proton.me" \
-      version="${VERSION}" \
-      description="wechat-article-exporter Docker Image" \
-      org.opencontainers.image.source="https://github.com/wechat-article/wechat-article-exporter" \
-      org.opencontainers.image.description="一个在线的微信公众号文章批量下载工具，支持下载阅读量与评论数据，支持私有化部署，通过浏览器进行使用，无需进行安装" \
-      org.opencontainers.image.licenses="MIT"
+LABEL maintainer="gopherty666@gmail.com" \
+    version="${VERSION}" \
+    description="wechat-article-monitor Docker Image" \
+    org.opencontainers.image.description="一个在线的微信公众号文章监控、下载工具，支持下载阅读量与评论数据，支持私有化部署，通过浏览器进行使用，无需进行安装" \
+    org.opencontainers.image.licenses="MIT"
 
 # 安装 Chromium、中文字体和 CA 证书
 RUN apt-get update && apt-get install -y \
