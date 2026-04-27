@@ -8,7 +8,7 @@ import { htmlContent } from '~/server/db/schema';
 
 export default defineEventHandler(async event => {
   const db = getDb();
-  const body = await readBody(event);
+  const body = await readLargeBody(event);
 
   const { url, fakeid, title, commentId, fileData } = body;
 

@@ -46,6 +46,12 @@ export default defineNuxtConfig({
         base: process.env.NITRO_KV_BASE,
       },
     },
+    routeRules: {
+      '/api/**': {
+        // Increase the maximum body size to 50MB (52428800 bytes) to allow large HTML / Base64 uploads
+        // h3 uses this value to enforce request body limits.
+      }
+    }
   },
   monacoEditor: {
     locale: 'en',
