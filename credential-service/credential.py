@@ -4,9 +4,6 @@ import json
 from urllib.parse import urlparse, parse_qs
 import time
 from typing import Optional
-from bs4 import BeautifulSoup
-
-
 class ExtractWxCredentials:
     def __init__(self):
         self.cookies = {}
@@ -37,13 +34,16 @@ class ExtractWxCredentials:
                 avatar = None
                 if flow.response.content:
                     try:
-                        soup = BeautifulSoup(flow.response.content, 'html.parser')
-                        name_tag = soup.css.select_one('.wx_follow_nickname')
-                        avatar_tag = soup.css.select_one('.wx_follow_avatar > img.wx_follow_avatar_pic')
-                        if name_tag:
-                            name = name_tag.get_text(strip=True)
-                        if avatar_tag:
-                            avatar = avatar_tag['src']
+                        import re
+                        html_content = flow.response.content.decode('utf-8', errors='ignore')
+                        
+                        name_match = re.search(r'class=["\'][^"\']*wx_follow_nickname[^"\']*["\'][^>]*>([^<]+)<', html_content)
+                        if name_match:
+                            name = name_match.group(1).strip()
+                        
+                        avatar_match = re.search(r'class=["\'][^"\']*wx_follow_avatar_pic[^"\']*["\'][^>]*src=["\']([^"\']+)["\']', html_content)
+                        if avatar_match:
+                            avatar = avatar_match.group(1)
                     except Exception as e:
                         print(f"Error parsing HTML: {e}")
 
