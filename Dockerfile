@@ -55,6 +55,7 @@ WORKDIR /app
 
 # 复制构建输出
 COPY --from=build-env /app/.output ./
+COPY --from=build-env /app/credential-service ./credential-service
 
 # 创建 KV 存储目录并设置权限（以 root 运行，确保 node 用户可写）
 RUN mkdir -p .data/kv && chown -R node:node /app
@@ -64,6 +65,7 @@ USER node
 
 # 暴露端口
 EXPOSE 3000
+EXPOSE 65000
 
 # 设置环境变量：生产模式，监听所有接口
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
