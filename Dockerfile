@@ -36,10 +36,16 @@ LABEL maintainer="gopherty666@gmail.com" \
     org.opencontainers.image.description="一个在线的微信公众号文章监控、下载工具，支持下载阅读量与评论数据，支持私有化部署，通过浏览器进行使用，无需进行安装" \
     org.opencontainers.image.licenses="MIT"
 
-# 安装 Chromium、中文字体和 CA 证书
+# 安装 Chromium、中文字体、CA 证书，以及 python3 和 pip
 RUN apt-get update && apt-get install -y \
     chromium fonts-noto-cjk fonts-noto-color-emoji ca-certificates \
+    python3 python3-pip python3-venv \
     --no-install-recommends && rm -rf /var/lib/apt/lists/*
+
+# 创建虚拟环境并安装 mitmproxy (推荐方式，避免 PEP 668 错误)
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install mitmproxy
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
