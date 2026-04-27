@@ -119,7 +119,9 @@ async function startMitmProxy() {
     '--set',
     'connection_strategy=lazy',
     '--set',
-    'ssl_insecure=true'
+    'ssl_insecure=true',
+    '--set',
+    'block_global=false'
   ];
 
   console.log(`[credential-service] starting mitmdump on port ${MITM_PORT}...`);
