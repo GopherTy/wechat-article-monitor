@@ -108,9 +108,9 @@ export async function initializeDb(): Promise<void> {
       count INTEGER NOT NULL DEFAULT 0,
       articles INTEGER NOT NULL DEFAULT 0,
       total_count INTEGER NOT NULL DEFAULT 0,
-      create_time INTEGER,
-      update_time INTEGER,
-      last_update_time INTEGER
+      create_time BIGINT,
+      update_time BIGINT,
+      last_update_time BIGINT
     );
 
     CREATE TABLE IF NOT EXISTS article (
@@ -122,8 +122,8 @@ export async function initializeDb(): Promise<void> {
       digest TEXT,
       cover TEXT,
       author_name VARCHAR(255),
-      create_time INTEGER,
-      update_time INTEGER,
+      create_time BIGINT,
+      update_time BIGINT,
       appmsgid BIGINT,
       itemidx INTEGER,
       is_deleted BOOLEAN DEFAULT FALSE,
@@ -210,10 +210,10 @@ export async function initializeDb(): Promise<void> {
       nickname VARCHAR(255),
       round_head_img TEXT,
       enabled BOOLEAN DEFAULT TRUE,
-      last_check_time INTEGER DEFAULT 0,
+      last_check_time BIGINT DEFAULT 0,
       last_known_aid VARCHAR(64) DEFAULT '',
       check_count INTEGER DEFAULT 0,
-      last_discovery_at INTEGER DEFAULT 0,
+      last_discovery_at BIGINT DEFAULT 0,
       discovered_count INTEGER DEFAULT 0
     );
 
@@ -226,8 +226,8 @@ export async function initializeDb(): Promise<void> {
       article_aid VARCHAR(64),
       comment_id VARCHAR(255) DEFAULT '',
       status VARCHAR(32) NOT NULL,
-      created_at INTEGER NOT NULL,
-      tracking_end_at INTEGER DEFAULT 0,
+      created_at BIGINT NOT NULL,
+      tracking_end_at BIGINT DEFAULT 0,
       accumulated_comments JSONB DEFAULT '[]',
       final_comments JSONB DEFAULT '[]',
       shielded_comments JSONB DEFAULT '[]',
@@ -236,7 +236,7 @@ export async function initializeDb(): Promise<void> {
       auto_track_enabled BOOLEAN DEFAULT TRUE,
       source VARCHAR(16) DEFAULT 'auto',
       source_fakeid VARCHAR(64),
-      last_sync_at INTEGER DEFAULT 0,
+      last_sync_at BIGINT DEFAULT 0,
       comment_first_seen_at JSONB DEFAULT '{}',
       comment_shielded_at JSONB DEFAULT '{}'
     );
@@ -247,6 +247,20 @@ export async function initializeDb(): Promise<void> {
     -- 兼容旧表：升级字段类型
     ALTER TABLE article ALTER COLUMN appmsgid TYPE BIGINT;
     ALTER TABLE article ALTER COLUMN title TYPE TEXT;
+    ALTER TABLE article ALTER COLUMN create_time TYPE BIGINT;
+    ALTER TABLE article ALTER COLUMN update_time TYPE BIGINT;
+
+    ALTER TABLE mp_account ALTER COLUMN create_time TYPE BIGINT;
+    ALTER TABLE mp_account ALTER COLUMN update_time TYPE BIGINT;
+    ALTER TABLE mp_account ALTER COLUMN last_update_time TYPE BIGINT;
+
+    ALTER TABLE watched_account ALTER COLUMN last_check_time TYPE BIGINT;
+    ALTER TABLE watched_account ALTER COLUMN last_discovery_at TYPE BIGINT;
+
+    ALTER TABLE comment_monitor_task ALTER COLUMN created_at TYPE BIGINT;
+    ALTER TABLE comment_monitor_task ALTER COLUMN tracking_end_at TYPE BIGINT;
+    ALTER TABLE comment_monitor_task ALTER COLUMN last_sync_at TYPE BIGINT;
+
     ALTER TABLE html_content ALTER COLUMN title TYPE TEXT;
     ALTER TABLE comment ALTER COLUMN title TYPE TEXT;
     ALTER TABLE comment_reply ALTER COLUMN title TYPE TEXT;

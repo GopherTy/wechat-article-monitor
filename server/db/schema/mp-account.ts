@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, varchar } from 'drizzle-orm/pg-core';
+import { bigint, boolean, integer, pgTable, text, varchar } from 'drizzle-orm/pg-core';
 
 export const mpAccount = pgTable('mp_account', {
   fakeid: varchar('fakeid', { length: 64 }).primaryKey(),
@@ -8,7 +8,7 @@ export const mpAccount = pgTable('mp_account', {
   count: integer('count').notNull().default(0),
   articles: integer('articles').notNull().default(0),
   totalCount: integer('total_count').notNull().default(0),
-  createTime: integer('create_time'),
-  updateTime: integer('update_time'),
-  lastUpdateTime: integer('last_update_time'),
+  createTime: bigint('create_time', { mode: 'number' }),
+  updateTime: bigint('update_time', { mode: 'number' }),
+  lastUpdateTime: bigint('last_update_time', { mode: 'number' }),
 });
