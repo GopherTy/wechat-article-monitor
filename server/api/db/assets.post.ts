@@ -1,6 +1,6 @@
 /**
  * POST /api/db/assets
- * 上传通用资源
+ * 批量上传或更新通用资源
  */
 import { sql } from 'drizzle-orm';
 import { getDb } from '~/server/db/connection';
@@ -9,17 +9,21 @@ import { asset } from '~/server/db/schema';
 export default defineEventHandler(async event => {
   const db = getDb();
   const body = await readLargeBody(event);
-  const { url, fakeid, fileData } = body;
+  const items = Array.isArray(body) ? body : [body];
 
-  if (!url || !fakeid || !fileData) {
-    throw createError({ statusCode: 400, message: 'url, fakeid, fileData are required' });
+  if (items.length === 0) {
+    return { success: true, count: 0 };
   }
 
-  const buffer = Buffer.from(fileData, 'base64');
+  const values = items.map(item => ({
+    url: item.url,
+    fakeid: item.fakeid,
+    fileData: Buffer.from(item.fileData, 'base64'),
+  }));
 
   await db
     .insert(asset)
-    .values({ url, fakeid, fileData: buffer })
+    .values(values)
     .onConflictDoUpdate({
       target: asset.url,
       set: {
@@ -28,5 +32,5 @@ export default defineEventHandler(async event => {
       },
     });
 
-  return { success: true };
+  return { success: true, count: items.length };
 });

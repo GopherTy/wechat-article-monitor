@@ -3,15 +3,16 @@
  * 支持 IndexedDB ↔ PostgreSQL 双向迁移
  */
 import { ref, computed } from 'vue';
+import { useLocalStorage } from '@vueuse/core';
 import type { MigrationProgress } from '~/store/v2/adapter';
 import { IndexedDBAdapter } from '~/store/v2/adapters/indexeddb-adapter';
 import { PgAdapter } from '~/store/v2/adapters/pg-adapter';
-import { setStorageMode, getStorageMode } from '~/store/v2/adapters';
+import { setStorageMode as _setStorageMode, getStorageMode } from '~/store/v2/adapters';
 import { db } from '~/store/v2/db';
 
 export type MigrationDirection = 'idb-to-pg' | 'pg-to-idb';
 
-interface TableProgress {
+export interface TableProgress {
   table: string;
   label: string;
   current: number;
@@ -34,13 +35,10 @@ const TABLE_LABELS: Record<string, string> = {
   comment_monitor_task: '评论监控任务',
 };
 
+import { globalMigrationState } from '~/composables/useGlobalMigrationState';
+
 export function useMigration() {
-  const migrating = ref(false);
-  const direction = ref<MigrationDirection>('idb-to-pg');
-  const tableProgress = ref<TableProgress[]>([]);
-  const currentTable = ref('');
-  const error = ref<string | null>(null);
-  const completed = ref(false);
+  const { migrating, direction, tableProgress, currentTable, error, completed, storageMode, isStopping } = globalMigrationState;
 
   const overallProgress = computed(() => {
     if (tableProgress.value.length === 0) return 0;
@@ -48,7 +46,12 @@ export function useMigration() {
     return Math.round((doneCount / tableProgress.value.length) * 100);
   });
 
-  const currentMode = computed(() => getStorageMode());
+  const currentMode = computed(() => storageMode.value);
+
+  function setStorageMode(mode: 'indexeddb' | 'postgres') {
+    storageMode.value = mode;
+    _setStorageMode(mode);
+  }
 
   function initProgress() {
     const tables = Object.keys(TABLE_LABELS);
@@ -65,6 +68,12 @@ export function useMigration() {
     const idx = tableProgress.value.findIndex(t => t.table === table);
     if (idx >= 0) {
       tableProgress.value[idx] = { ...tableProgress.value[idx], ...updates };
+    }
+  }
+
+  function checkStop() {
+    if (isStopping.value) {
+      throw new Error('用户中断了迁移');
     }
   }
 
@@ -95,6 +104,7 @@ export function useMigration() {
       const accounts = await source.getAllAccounts();
       updateTableProgress('info', { total: accounts.length });
       for (let i = 0; i < accounts.length; i++) {
+        checkStop();
         await target.putAccount(accounts[i]);
         updateTableProgress('info', { current: i + 1 });
       }
@@ -114,6 +124,7 @@ export function useMigration() {
       // 分批 200 条
       const BATCH = 200;
       for (let i = 0; i < allArticles.length; i += BATCH) {
+        checkStop();
         const batch = allArticles.slice(i, i + BATCH);
         const keys = await Promise.all(
           batch.map(async a => {
@@ -138,6 +149,7 @@ export function useMigration() {
       const allHtml = await db.html.toArray();
       updateTableProgress('html', { total: allHtml.length });
       for (let i = 0; i < allHtml.length; i++) {
+        checkStop();
         await target.putHtml(allHtml[i]);
         updateTableProgress('html', { current: i + 1 });
       }
@@ -154,6 +166,7 @@ export function useMigration() {
       const allComments = await db.comment.toArray();
       updateTableProgress('comment', { total: allComments.length });
       for (let i = 0; i < allComments.length; i++) {
+        checkStop();
         await target.putComment(allComments[i]);
         updateTableProgress('comment', { current: i + 1 });
       }
@@ -170,6 +183,7 @@ export function useMigration() {
       const allReplies = await db.comment_reply.toArray();
       updateTableProgress('comment_reply', { total: allReplies.length });
       for (let i = 0; i < allReplies.length; i++) {
+        checkStop();
         await target.putCommentReply(allReplies[i]);
         updateTableProgress('comment_reply', { current: i + 1 });
       }
@@ -188,6 +202,7 @@ export function useMigration() {
 
       const BATCH = 200;
       for (let i = 0; i < allMeta.length; i += BATCH) {
+        checkStop();
         const batch = allMeta.slice(i, i + BATCH);
         for (const m of batch) {
           await target.putMetadata(m);
@@ -207,6 +222,7 @@ export function useMigration() {
       const allResources = await db.resource.toArray();
       updateTableProgress('resource', { total: allResources.length });
       for (let i = 0; i < allResources.length; i++) {
+        checkStop();
         await target.putResource(allResources[i]);
         updateTableProgress('resource', { current: i + 1 });
       }
@@ -223,6 +239,7 @@ export function useMigration() {
       const allMaps = await db['resource-map'].toArray();
       updateTableProgress('resource-map', { total: allMaps.length });
       for (let i = 0; i < allMaps.length; i++) {
+        checkStop();
         await target.putResourceMap(allMaps[i]);
         updateTableProgress('resource-map', { current: i + 1 });
       }
@@ -239,6 +256,7 @@ export function useMigration() {
       const allAssets = await db.asset.toArray();
       updateTableProgress('asset', { total: allAssets.length });
       for (let i = 0; i < allAssets.length; i++) {
+        checkStop();
         await target.putAsset(allAssets[i]);
         updateTableProgress('asset', { current: i + 1 });
       }
@@ -255,6 +273,7 @@ export function useMigration() {
       const allWatched = await source.getAllWatchedAccounts();
       updateTableProgress('watched_account', { total: allWatched.length });
       for (let i = 0; i < allWatched.length; i++) {
+        checkStop();
         await target.putWatchedAccount(allWatched[i]);
         updateTableProgress('watched_account', { current: i + 1 });
       }
@@ -271,6 +290,7 @@ export function useMigration() {
       const allTasks = await source.getAllCommentMonitorTasks();
       updateTableProgress('comment_monitor_task', { total: allTasks.length });
       for (let i = 0; i < allTasks.length; i++) {
+        checkStop();
         const { id, ...taskWithoutId } = allTasks[i];
         // 迁移时保留原始 id
         await $fetch('/api/db/monitor-tasks', {
@@ -300,6 +320,7 @@ export function useMigration() {
       const accounts = await source.getAllAccounts();
       updateTableProgress('info', { total: accounts.length });
       for (let i = 0; i < accounts.length; i++) {
+        checkStop();
         await target.putAccount(accounts[i]);
         updateTableProgress('info', { current: i + 1 });
       }
@@ -319,6 +340,7 @@ export function useMigration() {
 
       // 先统计总数
       for (const account of accounts) {
+        checkStop();
         const articles = await source.getArticles(account.fakeid);
         totalArticles += articles.length;
       }
@@ -326,6 +348,7 @@ export function useMigration() {
 
       // 再逐个迁移
       for (const account of accounts) {
+        checkStop();
         const articles = await source.getArticles(account.fakeid);
         if (articles.length > 0) {
           const keys = articles.map(a => `${a.fakeid}:${a.aid}`);
@@ -356,6 +379,7 @@ export function useMigration() {
 
         let processed = 0;
         for (const url of urls) {
+          checkStop();
           try {
             switch (tableName) {
               case 'html': {
@@ -413,6 +437,7 @@ export function useMigration() {
       const watched = await source.getAllWatchedAccounts();
       updateTableProgress('watched_account', { total: watched.length });
       for (let i = 0; i < watched.length; i++) {
+        checkStop();
         await target.putWatchedAccount(watched[i]);
         updateTableProgress('watched_account', { current: i + 1 });
       }
@@ -428,6 +453,7 @@ export function useMigration() {
       const tasks = await source.getAllCommentMonitorTasks();
       updateTableProgress('comment_monitor_task', { total: tasks.length });
       for (let i = 0; i < tasks.length; i++) {
+        checkStop();
         const { id, ...taskWithoutId } = tasks[i];
         await target.createCommentMonitorTask(taskWithoutId);
         updateTableProgress('comment_monitor_task', { current: i + 1 });
@@ -446,6 +472,7 @@ export function useMigration() {
     direction.value = dir;
     error.value = null;
     completed.value = false;
+    isStopping.value = false;
     initProgress();
 
     try {
@@ -466,11 +493,20 @@ export function useMigration() {
       }
       completed.value = true;
     } catch (e: any) {
-      error.value = e.message || '迁移过程中发生未知错误';
+      if (isStopping.value) {
+        error.value = '迁移已停止';
+      } else {
+        error.value = e.message || '迁移过程中发生未知错误';
+      }
     } finally {
       migrating.value = false;
+      isStopping.value = false;
       currentTable.value = '';
     }
+  }
+
+  function stopMigration() {
+    isStopping.value = true;
   }
 
   /**
@@ -509,6 +545,7 @@ export function useMigration() {
     getIdbStats,
     setStorageMode,
     initPgDatabase,
+    stopMigration,
   };
 }
 

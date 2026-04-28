@@ -13,7 +13,11 @@ const {
   startMigration,
   getIdbStats,
   setStorageMode,
+  stopMigration,
 } = useMigration();
+
+import { globalMigrationState } from '~/composables/useGlobalMigrationState';
+const { isStopping } = globalMigrationState;
 
 const isOpen = defineModel<boolean>('open', { default: false });
 const idbStats = ref<Record<string, number>>({});
@@ -97,7 +101,7 @@ function getStatusIcon(status: string): string {
       </div>
 
       <!-- 主内容 -->
-      <div v-else class="space-y-6">
+      <div v-else class="space-y-6 max-h-[70vh] overflow-y-auto px-1">
         <!-- PG 不可用警告 -->
         <UAlert
           v-if="pgAvailable === false"
@@ -112,7 +116,7 @@ function getStatusIcon(status: string): string {
           <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
             IndexedDB 数据统计
           </h4>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1 border border-gray-100 dark:border-gray-800 rounded-lg">
             <div
               v-for="(count, table) in idbStats"
               :key="table"
@@ -128,10 +132,11 @@ function getStatusIcon(status: string): string {
         </div>
 
         <!-- 迁移按钮 -->
-        <div v-if="!migrating && !completed" class="flex gap-3">
+        <div v-if="!migrating && !completed" class="flex flex-col gap-3">
           <UButton
             :disabled="pgAvailable !== true || totalIdbRecords === 0"
-            color="primary"
+            :loading="migrating"
+            :color="currentMode === 'indexeddb' ? 'blue' : 'gray'"
             size="lg"
             block
             @click="handleMigrate('idb-to-pg')"
@@ -141,7 +146,8 @@ function getStatusIcon(status: string): string {
           </UButton>
           <UButton
             :disabled="pgAvailable !== true"
-            color="gray"
+            :loading="migrating"
+            :color="currentMode === 'postgres' ? 'green' : 'gray'"
             size="lg"
             block
             @click="handleMigrate('pg-to-idb')"
@@ -154,15 +160,27 @@ function getStatusIcon(status: string): string {
         <!-- 迁移进度 -->
         <div v-if="migrating || completed" class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium">
-              {{ direction === 'idb-to-pg' ? 'IndexedDB → PostgreSQL' : 'PostgreSQL → IndexedDB' }}
-            </span>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium">
+                {{ direction === 'idb-to-pg' ? 'IndexedDB → PostgreSQL' : 'PostgreSQL → IndexedDB' }}
+              </span>
+              <UButton
+                v-if="migrating"
+                color="red"
+                variant="ghost"
+                size="xs"
+                :loading="isStopping"
+                @click="stopMigration"
+              >
+                停止
+              </UButton>
+            </div>
             <span class="text-sm text-gray-500">{{ overallProgress }}%</span>
           </div>
 
           <UProgress :value="overallProgress" :color="error ? 'red' : completed ? 'green' : 'primary'" />
 
-          <div class="space-y-2 max-h-72 overflow-y-auto">
+          <div class="space-y-2 max-h-48 overflow-y-auto border border-gray-100 dark:border-gray-800 p-2 rounded-lg">
             <div
               v-for="tp in tableProgress"
               :key="tp.table"
@@ -211,7 +229,7 @@ function getStatusIcon(status: string): string {
           <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">手动切换存储模式</h4>
           <div class="flex gap-2">
             <UButton
-              :color="currentMode === 'indexeddb' ? 'primary' : 'gray'"
+              :color="currentMode === 'indexeddb' ? 'blue' : 'gray'"
               size="sm"
               variant="soft"
               @click="setStorageMode('indexeddb')"
@@ -219,7 +237,7 @@ function getStatusIcon(status: string): string {
               IndexedDB
             </UButton>
             <UButton
-              :color="currentMode === 'postgres' ? 'primary' : 'gray'"
+              :color="currentMode === 'postgres' ? 'green' : 'gray'"
               size="sm"
               variant="soft"
               :disabled="pgAvailable !== true"

@@ -36,16 +36,14 @@ LABEL maintainer="gopherty666@gmail.com" \
     org.opencontainers.image.description="一个在线的微信公众号文章监控、下载工具，支持下载阅读量与评论数据，支持私有化部署，通过浏览器进行使用，无需进行安装" \
     org.opencontainers.image.licenses="MIT"
 
-# 安装 Chromium、中文字体、CA 证书，以及 python3 和 pip
+# 安装 Chromium、中文字体和 CA 证书（移除 Python 和 mitmproxy 以减小体积）
 RUN apt-get update && apt-get install -y \
-    chromium fonts-noto-cjk fonts-noto-color-emoji ca-certificates \
-    python3 python3-pip python3-venv \
-    --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-# 创建虚拟环境并安装 mitmproxy (推荐方式，避免 PEP 668 错误)
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install mitmproxy
+    chromium \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    ca-certificates \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
@@ -55,22 +53,20 @@ WORKDIR /app
 
 # 复制构建输出
 COPY --from=build-env /app/.output ./
-COPY --from=build-env /app/credential-service ./credential-service
 
-# 创建 KV 存储目录并设置权限（以 root 运行，确保 node 用户可写）
+# 创建 KV 存储目录并设置权限
 RUN mkdir -p .data/kv && chown -R node:node /app
 
-# 创建非 root 用户（使用内置 node 用户）
+# 使用内置 node 用户
 USER node
 
-# 暴露端口
+# 仅暴露 3000 端口
 EXPOSE 3000
-EXPOSE 65000
 
-# 设置环境变量：生产模式，监听所有接口
+# 设置环境变量
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000
 ENV DATABASE_URL=
 ENV NUXT_PUBLIC_STORAGE_MODE=indexeddb
 
-# 启动命令：运行 Nitro 生成的服务器
+# 启动命令
 ENTRYPOINT ["node", "server/index.mjs"]

@@ -173,8 +173,13 @@ function stopMitmProxy() {
 }
 
 export default defineNitroPlugin(nitro => {
-  startMitmProxy();
-  startFileWatcher();
+  // 仅在开发模式下启动抓包服务
+  if (process.env.NODE_ENV === 'development') {
+    startMitmProxy();
+    startFileWatcher();
+  } else {
+    console.log('[credential-service] Production mode detected, mitmproxy service disabled');
+  }
 
   nitro.hooks.hook('close', () => {
     stopMitmProxy();

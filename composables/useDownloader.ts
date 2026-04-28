@@ -1,5 +1,6 @@
 import { formatElapsedTime } from '#shared/utils/helpers';
 import toastFactory from '~/composables/toast';
+import { globalDownloadState } from '~/composables/useGlobalDownloadState';
 import type { Metadata } from '~/store/v2/metadata';
 import { Downloader } from '~/utils/download/Downloader';
 import type { DownloaderStatus } from '~/utils/download/types';
@@ -27,11 +28,17 @@ export interface DownloadArticleOptions {
 export default (options: Partial<DownloadArticleOptions> = {}) => {
   const toast = toastFactory();
 
-  const loading = ref(false);
-  const completed_count = ref(0);
-  const total_count = ref(0);
+  // 挂载时，如果当前有正在进行的相同类型的任务，将回调注入全局
+  onMounted(() => {
+    globalDownloadState.currentOptions = options;
+  });
 
-  let downloader: Downloader | null = null;
+  // 卸载时，清除当前页面的回调，但保留任务运行
+  onUnmounted(() => {
+    if (globalDownloadState.currentOptions === options) {
+      globalDownloadState.currentOptions = null;
+    }
+  });
 
   // 抓取文章内容(html)
   async function downloadArticleHTML(urls: string[]) {
@@ -41,33 +48,34 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
     }
 
     try {
-      loading.value = true;
+      globalDownloadState.loading.value = true;
+      globalDownloadState.activeType.value = 'html';
       cleanupDownloader();
 
-      downloader = new Downloader(urls);
+      const downloader = new Downloader(urls);
+      globalDownloadState.activeDownloader = downloader;
+
       downloader.on('download:progress', (url: string, success: boolean, status: DownloaderStatus) => {
-        console.debug(
-          `进度: (进行中:${status.pending.length} / 已完成:${status.completed.length} / 已失败:${status.failed.length} / 已删除:${status.deleted.length})`
-        );
-        completed_count.value = status.completed.length;
-        if (success && typeof options.onContent === 'function') {
-          options.onContent(url);
+        globalDownloadState.completedCount.value = status.completed.length;
+        // 执行当前页面的回调
+        if (success && typeof globalDownloadState.currentOptions?.onContent === 'function') {
+          globalDownloadState.currentOptions.onContent(url);
         }
       });
       downloader.on('download:deleted', (url: string) => {
-        if (typeof options.onDelete === 'function') {
-          options.onDelete(url);
+        if (typeof globalDownloadState.currentOptions?.onDelete === 'function') {
+          globalDownloadState.currentOptions.onDelete(url);
         }
       });
       downloader.on('download:exception', (url: string, msg: string) => {
-        if (typeof options.onStatusChange === 'function') {
-          options.onStatusChange(url, msg);
+        if (typeof globalDownloadState.currentOptions?.onStatusChange === 'function') {
+          globalDownloadState.currentOptions.onStatusChange(url, msg);
         }
       });
       downloader.on('download:begin', () => {
         console.debug('开始抓取【文章内容】...');
-        completed_count.value = 0;
-        total_count.value = urls.length;
+        globalDownloadState.completedCount.value = 0;
+        globalDownloadState.totalCount.value = urls.length;
       });
       downloader.on('download:finish', (seconds: number, status: DownloaderStatus) => {
         console.debug('耗时:', formatElapsedTime(seconds));
@@ -85,7 +93,8 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
       console.error('【文章内容】抓取失败:', error);
       alert((error as Error).message);
     } finally {
-      loading.value = false;
+      globalDownloadState.loading.value = false;
+      globalDownloadState.activeType.value = null;
       cleanupDownloader();
     }
   }
@@ -98,35 +107,35 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
     }
 
     try {
-      loading.value = true;
+      globalDownloadState.loading.value = true;
+      globalDownloadState.activeType.value = 'metadata';
       cleanupDownloader();
 
-      downloader = new Downloader(urls);
+      const downloader = new Downloader(urls);
+      globalDownloadState.activeDownloader = downloader;
+
       downloader.on('download:progress', (url: string, success: boolean, status: DownloaderStatus) => {
-        console.debug(
-          `进度: (进行中:${status.pending.length} / 已完成:${status.completed.length} / 已失败:${status.failed.length} / 已删除:${status.deleted.length})`
-        );
-        completed_count.value = status.completed.length;
+        globalDownloadState.completedCount.value = status.completed.length;
       });
       downloader.on('download:metadata', (url: string, metadata: Metadata) => {
-        if (typeof options.onMetadata === 'function') {
-          options.onMetadata(url, metadata);
+        if (typeof globalDownloadState.currentOptions?.onMetadata === 'function') {
+          globalDownloadState.currentOptions.onMetadata(url, metadata);
         }
       });
       downloader.on('download:deleted', (url: string) => {
-        if (typeof options.onDelete === 'function') {
-          options.onDelete(url);
+        if (typeof globalDownloadState.currentOptions?.onDelete === 'function') {
+          globalDownloadState.currentOptions.onDelete(url);
         }
       });
       downloader.on('download:exception', (url: string, msg: string) => {
-        if (typeof options.onStatusChange === 'function') {
-          options.onStatusChange(url, msg);
+        if (typeof globalDownloadState.currentOptions?.onStatusChange === 'function') {
+          globalDownloadState.currentOptions.onStatusChange(url, msg);
         }
       });
       downloader.on('download:begin', () => {
         console.debug('开始抓取【阅读量】...');
-        completed_count.value = 0;
-        total_count.value = urls.length;
+        globalDownloadState.completedCount.value = 0;
+        globalDownloadState.totalCount.value = urls.length;
       });
       downloader.on('download:finish', (seconds: number, status: DownloaderStatus) => {
         console.debug('耗时:', formatElapsedTime(seconds));
@@ -141,7 +150,8 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
       console.error('【阅读量】抓取失败:', error);
       alert((error as Error).message);
     } finally {
-      loading.value = false;
+      globalDownloadState.loading.value = false;
+      globalDownloadState.activeType.value = null;
       cleanupDownloader();
     }
   }
@@ -154,23 +164,23 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
     }
 
     try {
-      loading.value = true;
+      globalDownloadState.loading.value = true;
+      globalDownloadState.activeType.value = 'comment';
       cleanupDownloader();
 
-      downloader = new Downloader(urls);
+      const downloader = new Downloader(urls);
+      globalDownloadState.activeDownloader = downloader;
+
       downloader.on('download:progress', (url: string, success: boolean, status: DownloaderStatus) => {
-        console.debug(
-          `进度: (进行中:${status.pending.length} / 已完成:${status.completed.length} / 已失败:${status.failed.length} / 已删除:${status.deleted.length})`
-        );
-        completed_count.value = status.completed.length;
-        if (success && typeof options.onComment === 'function') {
-          options.onComment(url);
+        globalDownloadState.completedCount.value = status.completed.length;
+        if (success && typeof globalDownloadState.currentOptions?.onComment === 'function') {
+          globalDownloadState.currentOptions.onComment(url);
         }
       });
       downloader.on('download:begin', () => {
         console.debug('开始抓取【留言内容】...');
-        completed_count.value = 0;
-        total_count.value = urls.length;
+        globalDownloadState.completedCount.value = 0;
+        globalDownloadState.totalCount.value = urls.length;
       });
       downloader.on('download:finish', (seconds: number, status: DownloaderStatus) => {
         console.debug('耗时:', formatElapsedTime(seconds));
@@ -185,7 +195,8 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
       console.error('【留言内容】抓取失败:', error);
       alert((error as Error).message);
     } finally {
-      loading.value = false;
+      globalDownloadState.loading.value = false;
+      globalDownloadState.activeType.value = null;
       cleanupDownloader();
     }
   }
@@ -198,25 +209,25 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
     }
 
     try {
-      loading.value = true;
+      globalDownloadState.loading.value = true;
+      globalDownloadState.activeType.value = 'fakeid';
       cleanupDownloader();
 
-      downloader = new Downloader(urls);
+      const downloader = new Downloader(urls);
+      globalDownloadState.activeDownloader = downloader;
+
       downloader.on('download:progress', (url: string, success: boolean, status: DownloaderStatus) => {
-        console.debug(
-          `进度: (进行中:${status.pending.length} / 已完成:${status.completed.length} / 已失败:${status.failed.length})`
-        );
-        completed_count.value = status.completed.length;
+        globalDownloadState.completedCount.value = status.completed.length;
       });
       downloader.on('download:begin', () => {
         console.debug('开始修复 fakeid ...');
-        completed_count.value = 0;
-        total_count.value = urls.length;
+        globalDownloadState.completedCount.value = 0;
+        globalDownloadState.totalCount.value = urls.length;
       });
       downloader.on('fix:fakeid', (url: string, fakeid: string) => {
         console.debug(`${url} 修复成功 fakeid: ${fakeid}`);
-        if (typeof options.onFakeID === 'function') {
-          options.onFakeID(url, fakeid);
+        if (typeof globalDownloadState.currentOptions?.onFakeID === 'function') {
+          globalDownloadState.currentOptions.onFakeID(url, fakeid);
         }
       });
       downloader.on('download:finish', (seconds: number, status: DownloaderStatus) => {
@@ -232,7 +243,8 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
       console.error('【fakeid】修复失败:', error);
       alert((error as Error).message);
     } finally {
-      loading.value = false;
+      globalDownloadState.loading.value = false;
+      globalDownloadState.activeType.value = null;
       cleanupDownloader();
     }
   }
@@ -250,23 +262,23 @@ export default (options: Partial<DownloadArticleOptions> = {}) => {
   }
 
   function cleanupDownloader() {
-    if (downloader) {
-      downloader.removeAllListeners();
-      downloader = null;
+    if (globalDownloadState.activeDownloader) {
+      globalDownloadState.activeDownloader.removeAllListeners();
+      globalDownloadState.activeDownloader = null;
     }
   }
 
   function stop() {
-    if (downloader) {
-      downloader.stop();
-      // 注意：不在此处清理监听器，等 download:stop 事件触发后由 finally 块清理
+    if (globalDownloadState.activeDownloader) {
+      globalDownloadState.activeDownloader.stop();
     }
   }
 
   return {
-    loading,
-    completed_count,
-    total_count,
+    loading: globalDownloadState.loading,
+    completed_count: globalDownloadState.completedCount,
+    total_count: globalDownloadState.totalCount,
+    activeType: globalDownloadState.activeType,
     download,
     stop,
   };
