@@ -42,11 +42,8 @@ export default defineEventHandler(async event => {
 
   for (let i = 0; i < ids.length; i += BATCH_SIZE) {
     const batch = ids.slice(i, i + BATCH_SIZE);
-    const result = await db
-      .select({ id: pk })
-      .from(tableSchema)
-      .where(inArray(pk, batch));
-    
+    const result = await db.select({ id: pk }).from(tableSchema).where(inArray(pk, batch));
+
     existingIds.push(...result.map(r => String(r.id)));
   }
 

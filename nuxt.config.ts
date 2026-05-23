@@ -50,8 +50,8 @@ export default defineNuxtConfig({
       '/api/**': {
         // Increase the maximum body size to 50MB (52428800 bytes) to allow large HTML / Base64 uploads
         // h3 uses this value to enforce request body limits.
-      }
-    }
+      },
+    },
   },
   monacoEditor: {
     locale: 'en',

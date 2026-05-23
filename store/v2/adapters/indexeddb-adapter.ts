@@ -8,6 +8,7 @@ import type { Asset } from '~/store/v2/assets';
 import type { CommentAsset } from '~/store/v2/comment';
 import type { CommentReplyAsset } from '~/store/v2/comment_reply';
 import type { CommentMonitorTask } from '~/store/v2/commentMonitorTask';
+import { db } from '~/store/v2/db';
 import type { DebugAsset } from '~/store/v2/debug';
 import type { HtmlAsset } from '~/store/v2/html';
 import type { MpAccount } from '~/store/v2/info';
@@ -15,7 +16,6 @@ import type { Metadata } from '~/store/v2/metadata';
 import type { ResourceAsset } from '~/store/v2/resource';
 import type { ResourceMapAsset } from '~/store/v2/resource-map';
 import type { WatchedAccount } from '~/store/v2/watchedAccount';
-import { db } from '~/store/v2/db';
 
 export class IndexedDBAdapter implements StoreAdapter {
   readonly mode = 'indexeddb' as const;
@@ -34,12 +34,38 @@ export class IndexedDBAdapter implements StoreAdapter {
   }
 
   // ─── Article ───
-  async getArticles(fakeid: string, beforeTime?: number): Promise<ArticleAsset[]> {
+  async getArticles(
+    fakeid: string,
+    beforeTime?: number,
+    limit?: number,
+    offset?: number,
+    excludeDeleted?: boolean
+  ): Promise<ArticleAsset[]> {
     let query = db.article.where('fakeid').equals(fakeid);
     if (beforeTime) {
       query = query.and(article => article.create_time < beforeTime);
     }
-    return query.reverse().sortBy('create_time');
+    if (excludeDeleted) {
+      query = query.and(article => !article.is_deleted);
+    }
+    const sorted = await query.reverse().sortBy('create_time');
+    if (offset !== undefined || limit !== undefined) {
+      const start = offset ?? 0;
+      const end = limit !== undefined ? start + limit : undefined;
+      return sorted.slice(start, end);
+    }
+    return sorted;
+  }
+
+  async getArticlesCount(fakeid: string, beforeTime?: number, excludeDeleted?: boolean): Promise<number> {
+    let query = db.article.where('fakeid').equals(fakeid);
+    if (beforeTime) {
+      query = query.and(article => article.create_time < beforeTime);
+    }
+    if (excludeDeleted) {
+      query = query.and(article => !article.is_deleted);
+    }
+    return query.count();
   }
 
   async getArticleByLink(url: string): Promise<ArticleAsset | undefined> {

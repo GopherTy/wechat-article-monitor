@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMigration, type MigrationDirection } from '~/composables/useMigration';
+import { type MigrationDirection, useMigration } from '~/composables/useMigration';
 
 const {
   migrating,
@@ -17,6 +17,7 @@ const {
 } = useMigration();
 
 import { globalMigrationState } from '~/composables/useGlobalMigrationState';
+
 const { isStopping } = globalMigrationState;
 
 const isOpen = defineModel<boolean>('open', { default: false });
@@ -43,9 +44,7 @@ watch(isOpen, async val => {
   }
 });
 
-const totalIdbRecords = computed(() =>
-  Object.values(idbStats.value).reduce((sum, count) => sum + count, 0)
-);
+const totalIdbRecords = computed(() => Object.values(idbStats.value).reduce((sum, count) => sum + count, 0));
 
 function handleMigrate(dir: MigrationDirection) {
   startMigration(dir);
@@ -221,7 +220,7 @@ function getStatusIcon(status: string): string {
           icon="i-heroicons-check-circle"
           color="green"
           title="迁移完成"
-          :description="`已成功${direction === 'idb-to-pg' ? '迁移至 PostgreSQL，存储模式已自动切换' : '迁移至 IndexedDB，存储模式已自动切换'}。刷新页面后生效。`"
+          :description="`已成功${direction === 'idb-to-pg' ? '将数据复制至 PostgreSQL' : '将数据复制至 IndexedDB'}。请在下方手动切换存储模式，并刷新页面使更改生效。`"
         />
 
         <!-- 手动切换模式 -->

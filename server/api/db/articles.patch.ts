@@ -25,7 +25,10 @@ export default defineEventHandler(async event => {
     if (fakeid) {
       conditions.push(eq(article.fakeid, fakeid));
     }
-    await db.update(article).set(setValues).where(and(...conditions));
+    await db
+      .update(article)
+      .set(setValues)
+      .where(and(...conditions));
   } else {
     throw createError({ statusCode: 400, message: 'link or id is required' });
   }

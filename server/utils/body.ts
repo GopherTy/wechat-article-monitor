@@ -16,7 +16,7 @@ export async function readLargeBody(event: H3Event): Promise<any> {
   if (!bodyString) {
     return {};
   }
-  
+
   try {
     return JSON.parse(bodyString);
   } catch (err) {

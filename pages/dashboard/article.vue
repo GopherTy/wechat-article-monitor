@@ -23,7 +23,7 @@ import GridStatusBar from '~/components/grid/StatusBar.vue';
 import AccountSelectorForArticle from '~/components/selector/AccountSelectorForArticle.vue';
 import { isDev, websiteName } from '~/config';
 import { sharedGridOptions } from '~/config/shared-grid-options';
-import { articleDeleted, getArticleCache, updateArticleStatus } from '~/store/v2/article';
+import { articleDeleted, getArticleCache, getArticleCacheCount, updateArticleStatus } from '~/store/v2/article';
 import { getCommentCache } from '~/store/v2/comment';
 import { getDebugCache } from '~/store/v2/debug';
 import { getHtmlCache } from '~/store/v2/html';
@@ -358,6 +358,11 @@ function preview(article: Article) {
 
 const loading = ref(false);
 
+// 分页状态
+const currentPage = ref(1);
+const pageSize = ref(50);
+const totalArticles = ref(0);
+
 // 只能选择单个账号
 const selectedAccount = ref<MpAccount | undefined>();
 
@@ -368,35 +373,55 @@ onMounted(async () => {
 
 watch(selectedAccount, newVal => {
   if (newVal) {
+    currentPage.value = 1;
     switchTableData(newVal.fakeid).catch(() => {});
+  }
+});
+
+watch([currentPage, pageSize], () => {
+  if (selectedAccount.value) {
+    switchTableData(selectedAccount.value.fakeid).catch(() => {});
+  }
+});
+
+watch(hideDeleted, () => {
+  if (selectedAccount.value) {
+    currentPage.value = 1;
+    switchTableData(selectedAccount.value.fakeid).catch(() => {});
   }
 });
 
 async function switchTableData(fakeid: string) {
   loading.value = true;
-  const articles: Article[] = [];
-  const data = await getArticleCache(fakeid, Math.floor(Date.now() / 1000));
-  for (const article of data) {
-    const contentDownload = (await getHtmlCache(article.link)) !== undefined;
-    const commentDownload = (await getCommentCache(article.link)) !== undefined;
-    const metadata = await getMetadataCache(article.link);
-    if (metadata) {
-      articles.push({
-        ...metadata,
-        ...article,
-        contentDownload: contentDownload,
-        commentDownload: commentDownload,
-      });
-    } else {
-      articles.push({
-        ...article,
-        contentDownload: contentDownload,
-        commentDownload: commentDownload,
-      });
-    }
-  }
-  await sleep(200);
-  globalRowData = articles.filter(article => (hideDeleted.value ? !article.is_deleted : true));
+  const limit = pageSize.value;
+  const offset = (currentPage.value - 1) * pageSize.value;
+  const excludeDeleted = hideDeleted.value;
+
+  // 1. 获取该公众号符合条件下的总文章数
+  totalArticles.value = await getArticleCacheCount(fakeid, Math.floor(Date.now() / 1000), excludeDeleted);
+
+  // 2. 获取分页数据
+  const data = await getArticleCache(fakeid, Math.floor(Date.now() / 1000), limit, offset, excludeDeleted);
+
+  // 3. 并行并发查询各缓存状态（大幅提升性能）
+  const articlePromises = data.map(async article => {
+    const [contentDownload, commentDownload, metadata] = await Promise.all([
+      getHtmlCache(article.link).then(res => res !== undefined),
+      getCommentCache(article.link).then(res => res !== undefined),
+      getMetadataCache(article.link),
+    ]);
+    return {
+      ...(metadata || {}),
+      ...article,
+      contentDownload,
+      commentDownload,
+    } as Article;
+  });
+
+  const articles = await Promise.all(articlePromises);
+  await sleep(100);
+
+  globalRowData = articles;
   gridApi.value?.setGridOption('rowData', globalRowData);
   loading.value = false;
 }
@@ -605,7 +630,7 @@ function copyWechatLink() {
       </header>
 
       <ag-grid-vue
-        style="width: 100%; height: 100%"
+        style="width: 100%; flex: 1 1 0%; min-height: 0;"
         :loading="loading"
         :rowData="globalRowData"
         :columnDefs="columnDefs"
@@ -618,6 +643,42 @@ function copyWechatLink() {
         @column-resized="onColumnStateChange"
         @selection-changed="onSelectionChanged"
       ></ag-grid-vue>
+
+      <!-- 底部工作区 / 分页 -->
+      <footer class="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shrink-0">
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>共 <strong class="font-mono text-gray-900 dark:text-white">{{ totalArticles }}</strong> 篇文章</span>
+          <span v-if="selectedArticles.length > 0">
+            · 已选 <strong class="font-mono text-primary-500">{{ selectedArticles.length }}</strong> 篇
+          </span>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>每页:</span>
+            <USelect
+              v-model="pageSize"
+              :options="[
+                { label: '20 条', value: 20 },
+                { label: '50 条', value: 50 },
+                { label: '100 条', value: 100 },
+                { label: '200 条', value: 200 },
+                { label: '500 条', value: 500 }
+              ]"
+              size="sm"
+              class="w-24"
+            />
+          </div>
+          <UPagination
+            v-model="currentPage"
+            :page-count="pageSize"
+            :total="totalArticles"
+            size="sm"
+            :max="5"
+            show-last
+            show-first
+          />
+        </div>
+      </footer>
     </div>
 
     <PreviewArticle ref="previewArticleRef" />

@@ -24,7 +24,14 @@ export interface StoreAdapter {
   putAccount(account: MpAccount): Promise<void>;
 
   // ─── Article ───
-  getArticles(fakeid: string, beforeTime?: number): Promise<ArticleAsset[]>;
+  getArticles(
+    fakeid: string,
+    beforeTime?: number,
+    limit?: number,
+    offset?: number,
+    excludeDeleted?: boolean
+  ): Promise<ArticleAsset[]>;
+  getArticlesCount(fakeid: string, beforeTime?: number, excludeDeleted?: boolean): Promise<number>;
   getArticleByLink(url: string): Promise<ArticleAsset | undefined>;
   putArticles(articles: ArticleAsset[], keys?: string[]): Promise<string[]>;
   updateArticleStatus(url: string, status: string): Promise<void>;

@@ -11,7 +11,7 @@ export type ArticleAsset = AppMsgExWithFakeID;
  */
 export async function updateArticleCache(account: MpAccount, publish_page: PublishPage) {
   const adapter = getStoreAdapter();
-  
+
   // 对于 PgAdapter，如果想判断是否新增，可能有些困难（因为批量 upsert），
   // 但我们尽力通过获取已有数据来判断，或者干脆默认 count += articles.length。
   // 注意，原来的 IndexedDB 实现是判断 key 是否在 keys 里。
@@ -74,8 +74,28 @@ export async function hitCache(fakeid: string, create_time: number): Promise<boo
  * @param fakeid 公众号id
  * @param create_time 创建时间
  */
-export async function getArticleCache(fakeid: string, create_time: number): Promise<AppMsgExWithFakeID[]> {
-  return getStoreAdapter().getArticles(fakeid, create_time);
+export async function getArticleCache(
+  fakeid: string,
+  create_time: number,
+  limit?: number,
+  offset?: number,
+  excludeDeleted?: boolean
+): Promise<AppMsgExWithFakeID[]> {
+  return getStoreAdapter().getArticles(fakeid, create_time, limit, offset, excludeDeleted);
+}
+
+/**
+ * 获取文章缓存的数量
+ * @param fakeid 公众号id
+ * @param create_time 创建时间
+ * @param excludeDeleted 是否排除已删除文章
+ */
+export async function getArticleCacheCount(
+  fakeid: string,
+  create_time?: number,
+  excludeDeleted?: boolean
+): Promise<number> {
+  return getStoreAdapter().getArticlesCount(fakeid, create_time, excludeDeleted);
 }
 
 /**

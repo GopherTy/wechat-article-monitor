@@ -1,5 +1,5 @@
-import { ref } from 'vue';
 import { useLocalStorage } from '@vueuse/core';
+import { ref } from 'vue';
 import { getStorageMode } from '~/store/v2/adapters';
 import type { MigrationDirection, TableProgress } from './useMigration';
 

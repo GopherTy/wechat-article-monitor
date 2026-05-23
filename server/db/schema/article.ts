@@ -1,4 +1,4 @@
-import { boolean, bigint, index, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core';
 
 export const article = pgTable(
   'article',

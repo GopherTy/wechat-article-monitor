@@ -94,11 +94,28 @@ export class PgAdapter implements StoreAdapter {
   }
 
   // ─── Article ───
-  async getArticles(fakeid: string, beforeTime?: number): Promise<ArticleAsset[]> {
+  async getArticles(
+    fakeid: string,
+    beforeTime?: number,
+    limit?: number,
+    offset?: number,
+    excludeDeleted?: boolean
+  ): Promise<ArticleAsset[]> {
     const query: Record<string, any> = { fakeid };
     if (beforeTime) query.before_time = beforeTime;
+    if (limit !== undefined) query.limit = limit;
+    if (offset !== undefined) query.offset = offset;
+    if (excludeDeleted !== undefined) query.exclude_deleted = excludeDeleted ? 'true' : 'false';
     const result = await $fetch<any[]>('/api/db/articles', { query });
     return (result || []).map(r => this.mapArticleFromPg(r));
+  }
+
+  async getArticlesCount(fakeid: string, beforeTime?: number, excludeDeleted?: boolean): Promise<number> {
+    const query: Record<string, any> = { fakeid, count: 'true' };
+    if (beforeTime) query.before_time = beforeTime;
+    if (excludeDeleted !== undefined) query.exclude_deleted = excludeDeleted ? 'true' : 'false';
+    const result = await $fetch<{ count: number }>('/api/db/articles', { query });
+    return result?.count ?? 0;
   }
 
   async getArticleByLink(url: string): Promise<ArticleAsset | undefined> {

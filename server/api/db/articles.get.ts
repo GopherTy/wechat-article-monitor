@@ -2,7 +2,7 @@
  * GET /api/db/articles
  * 查询文章列表，按 fakeid 过滤 + 可选的 before_time
  */
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import { getDb } from '~/server/db/connection';
 import { article } from '~/server/db/schema';
 
@@ -26,6 +26,36 @@ export default defineEventHandler(async event => {
   if (beforeTime) {
     conditions.push(lt(article.createTime, beforeTime));
   }
+  if (query.exclude_deleted === 'true') {
+    conditions.push(eq(article.isDeleted, false));
+  }
 
-  return db.select().from(article).where(and(...conditions)).orderBy(desc(article.createTime));
+  if (query.count === 'true') {
+    const result = await db
+      .select({ count: sql<number>`cast(count(*) as integer)` })
+      .from(article)
+      .where(and(...conditions));
+    return { count: result[0]?.count ?? 0 };
+  }
+
+  const limit = query.limit ? Number(query.limit) : undefined;
+  const offset = query.offset ? Number(query.offset) : undefined;
+
+  const selectQuery = db
+    .select()
+    .from(article)
+    .where(and(...conditions))
+    .orderBy(desc(article.createTime));
+
+  if (limit !== undefined && offset !== undefined) {
+    return selectQuery.limit(limit).offset(offset);
+  }
+  if (limit !== undefined) {
+    return selectQuery.limit(limit);
+  }
+  if (offset !== undefined) {
+    return selectQuery.offset(offset);
+  }
+
+  return selectQuery;
 });

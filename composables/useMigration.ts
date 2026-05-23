@@ -2,12 +2,13 @@
  * 数据迁移 Composable
  * 支持 IndexedDB ↔ PostgreSQL 双向迁移
  */
-import { ref, computed } from 'vue';
+
 import { useLocalStorage } from '@vueuse/core';
+import { computed, ref } from 'vue';
 import type { MigrationProgress } from '~/store/v2/adapter';
+import { setStorageMode as _setStorageMode, getStorageMode } from '~/store/v2/adapters';
 import { IndexedDBAdapter } from '~/store/v2/adapters/indexeddb-adapter';
 import { PgAdapter } from '~/store/v2/adapters/pg-adapter';
-import { setStorageMode as _setStorageMode, getStorageMode } from '~/store/v2/adapters';
 import { db } from '~/store/v2/db';
 
 export type MigrationDirection = 'idb-to-pg' | 'pg-to-idb';
@@ -38,7 +39,8 @@ const TABLE_LABELS: Record<string, string> = {
 import { globalMigrationState } from '~/composables/useGlobalMigrationState';
 
 export function useMigration() {
-  const { migrating, direction, tableProgress, currentTable, error, completed, storageMode, isStopping } = globalMigrationState;
+  const { migrating, direction, tableProgress, currentTable, error, completed, storageMode, isStopping } =
+    globalMigrationState;
 
   const overallProgress = computed(() => {
     if (tableProgress.value.length === 0) return 0;
@@ -367,7 +369,15 @@ export function useMigration() {
     // 此处使用简化版：按 account 逐个拉取
     const accounts = await source.getAllAccounts();
 
-    for (const tableName of ['html', 'comment', 'comment_reply', 'metadata', 'resource', 'resource-map', 'asset'] as const) {
+    for (const tableName of [
+      'html',
+      'comment',
+      'comment_reply',
+      'metadata',
+      'resource',
+      'resource-map',
+      'asset',
+    ] as const) {
       currentTable.value = tableName;
       updateTableProgress(tableName, { status: 'running' });
       try {
@@ -484,12 +494,12 @@ export function useMigration() {
           return;
         }
         await migrateIdbToPg();
-        // 迁移完成，自动切换到 postgres 模式
-        setStorageMode('postgres');
+        // 迁移完成，不再自动切换到 postgres 模式，由用户手动切换
+        // setStorageMode('postgres');
       } else {
         await migratePgToIdb();
-        // 反向迁移完成，切换回 indexeddb 模式
-        setStorageMode('indexeddb');
+        // 反向迁移完成，不再自动切换到 indexeddb 模式，由用户手动切换
+        // setStorageMode('indexeddb');
       }
       completed.value = true;
     } catch (e: any) {
