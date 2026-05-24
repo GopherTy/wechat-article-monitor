@@ -214,7 +214,12 @@
 
           <!-- 完美沙盒隔离渲染 -->
           <client-only v-else>
-            <iframe class="border-none w-full h-full" referrerpolicy="no-referrer" :srcdoc="styledHtmlContent"></iframe>
+            <iframe
+              :key="`${selectedArticle?.aid}_${activeTheme}_${fontSize}`"
+              class="border-none w-full h-full"
+              referrerpolicy="no-referrer"
+              :srcdoc="styledHtmlContent"
+            ></iframe>
           </client-only>
         </div>
       </template>
@@ -271,19 +276,52 @@ const styledHtmlContent = computed(() => {
     ADD_ATTR: ['name', 'content', 'referrerpolicy'],
   });
   const themeObj = currentThemeObj.value;
+  const isDark = themeObj.id === 'dark';
+  const darkOverrides = isDark ? `
+    html, body, 
+    html body .__page_content__, 
+    html body .__page_content__ *,
+    html body .rich_media_content, 
+    html body .rich_media_content *,
+    html body #js_content, 
+    html body #js_content * {
+      color: ${themeObj.text} !important;
+      background-color: transparent !important;
+      --weui-FG-0: ${themeObj.text} !important;
+      --weui-FG-1: ${themeObj.text} !important;
+      --weui-FG-2: ${themeObj.text} !important;
+      --weui-FG-3: ${themeObj.text} !important;
+      --weui-FG-HALF: ${themeObj.text} !important;
+      --weui-BG-0: ${themeObj.bg} !important;
+      --weui-BG-1: ${themeObj.bg} !important;
+      --weui-BG-2: ${themeObj.bg} !important;
+      --weui-BG-3: ${themeObj.bg} !important;
+      --weui-BG-4: ${themeObj.bg} !important;
+      --weui-BG-5: ${themeObj.bg} !important;
+    }
+    /* 极致保险：针对文章内部可能存在的直接行内元素强力拦截 */
+    span, p, strong, section, h1, h2, h3, h4, h5, h6, font {
+      color: ${themeObj.text} !important;
+    }
+    html a, body a, html a *, body a * {
+      color: #3b82f6 !important;
+    }
+  ` : '';
 
   // 渲染排版 CSS overrides
   const themeStyles = `
-    body {
+    html, body {
       background-color: ${themeObj.bg} !important;
       color: ${themeObj.text} !important;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    body {
       font-size: ${fontSize.value}px !important;
       line-height: 1.85 !important;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif !important;
       padding: 50px 30px !important;
       max-width: 680px !important;
       margin: 0 auto !important;
-      transition: background-color 0.25s ease, color 0.25s ease, font-size 0.15s ease;
     }
     #js_content {
       visibility: visible !important;
@@ -338,6 +376,7 @@ const styledHtmlContent = computed(() => {
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(120, 120, 120, 0.4);
     }
+    ${darkOverrides}
   `;
 
   if (cleanHtml.includes('</head>')) {

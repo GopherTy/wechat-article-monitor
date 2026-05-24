@@ -494,7 +494,7 @@ const { getActualDateRange } = useSyncDeadline();
 
     <div class="flex flex-col h-full divide-y divide-gray-200">
       <!-- 顶部操作区 -->
-      <header class="flex items-stretch gap-3 px-3 py-3">
+      <header class="flex flex-wrap items-center gap-2 px-3 py-3 shrink-0">
         <UButton icon="i-lucide:user-plus" color="blue" :disabled="isDeleting || addBtnLoading" @click="addAccount">
           {{ addBtnLoading ? '添加中...' : '添加' }}
         </UButton>
