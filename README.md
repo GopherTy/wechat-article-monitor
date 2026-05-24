@@ -168,7 +168,7 @@ function onResponse(request, response) {
 
 ## 许可
 
-[MIT](./LICENSE) © 2024 Jock · 2026 tomczhang
+[MIT](./LICENSE) © 2024 Jock · 2026 gopherty666
 
 ---
 
