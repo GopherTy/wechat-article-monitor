@@ -104,10 +104,17 @@ export function useMigration() {
     updateTableProgress('info', { status: 'running' });
     try {
       const accounts = await source.getAllAccounts();
-      updateTableProgress('info', { total: accounts.length });
-      for (let i = 0; i < accounts.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'mpAccount', ids: accounts.map(a => a.fakeid) },
+      });
+      const existingSet = new Set(existingIds);
+      const newAccounts = accounts.filter(a => !existingSet.has(a.fakeid));
+
+      updateTableProgress('info', { total: newAccounts.length });
+      for (let i = 0; i < newAccounts.length; i++) {
         checkStop();
-        await target.putAccount(accounts[i]);
+        await target.putAccount(newAccounts[i]);
         updateTableProgress('info', { current: i + 1 });
       }
       updateTableProgress('info', { status: 'done' });
@@ -121,22 +128,23 @@ export function useMigration() {
     updateTableProgress('article', { status: 'running' });
     try {
       const allArticles = await db.article.toArray();
-      updateTableProgress('article', { total: allArticles.length });
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'article', ids: allArticles.map(a => `${a.fakeid}:${a.aid}`) },
+      });
+      const existingSet = new Set(existingIds);
+      const newArticles = allArticles.filter(a => !existingSet.has(`${a.fakeid}:${a.aid}`));
+
+      updateTableProgress('article', { total: newArticles.length });
 
       // 分批 200 条
       const BATCH = 200;
-      for (let i = 0; i < allArticles.length; i += BATCH) {
+      for (let i = 0; i < newArticles.length; i += BATCH) {
         checkStop();
-        const batch = allArticles.slice(i, i + BATCH);
-        const keys = await Promise.all(
-          batch.map(async a => {
-            // 获取原始 key
-            const primaryKey = `${a.fakeid}:${a.aid}`;
-            return primaryKey;
-          })
-        );
+        const batch = newArticles.slice(i, i + BATCH);
+        const keys = batch.map(a => `${a.fakeid}:${a.aid}`);
         await target.putArticles(batch, keys);
-        updateTableProgress('article', { current: Math.min(i + BATCH, allArticles.length) });
+        updateTableProgress('article', { current: Math.min(i + BATCH, newArticles.length) });
       }
       updateTableProgress('article', { status: 'done' });
     } catch (e: any) {
@@ -149,10 +157,17 @@ export function useMigration() {
     updateTableProgress('html', { status: 'running' });
     try {
       const allHtml = await db.html.toArray();
-      updateTableProgress('html', { total: allHtml.length });
-      for (let i = 0; i < allHtml.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'html', ids: allHtml.map(h => h.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newHtml = allHtml.filter(h => !existingSet.has(h.url));
+
+      updateTableProgress('html', { total: newHtml.length });
+      for (let i = 0; i < newHtml.length; i++) {
         checkStop();
-        await target.putHtml(allHtml[i]);
+        await target.putHtml(newHtml[i]);
         updateTableProgress('html', { current: i + 1 });
       }
       updateTableProgress('html', { status: 'done' });
@@ -166,10 +181,17 @@ export function useMigration() {
     updateTableProgress('comment', { status: 'running' });
     try {
       const allComments = await db.comment.toArray();
-      updateTableProgress('comment', { total: allComments.length });
-      for (let i = 0; i < allComments.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'comment', ids: allComments.map(c => c.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newComments = allComments.filter(c => !existingSet.has(c.url));
+
+      updateTableProgress('comment', { total: newComments.length });
+      for (let i = 0; i < newComments.length; i++) {
         checkStop();
-        await target.putComment(allComments[i]);
+        await target.putComment(newComments[i]);
         updateTableProgress('comment', { current: i + 1 });
       }
       updateTableProgress('comment', { status: 'done' });
@@ -183,10 +205,17 @@ export function useMigration() {
     updateTableProgress('comment_reply', { status: 'running' });
     try {
       const allReplies = await db.comment_reply.toArray();
-      updateTableProgress('comment_reply', { total: allReplies.length });
-      for (let i = 0; i < allReplies.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'commentReply', ids: allReplies.map(r => `${r.url}:${r.contentID}`) },
+      });
+      const existingSet = new Set(existingIds);
+      const newReplies = allReplies.filter(r => !existingSet.has(`${r.url}:${r.contentID}`));
+
+      updateTableProgress('comment_reply', { total: newReplies.length });
+      for (let i = 0; i < newReplies.length; i++) {
         checkStop();
-        await target.putCommentReply(allReplies[i]);
+        await target.putCommentReply(newReplies[i]);
         updateTableProgress('comment_reply', { current: i + 1 });
       }
       updateTableProgress('comment_reply', { status: 'done' });
@@ -200,16 +229,23 @@ export function useMigration() {
     updateTableProgress('metadata', { status: 'running' });
     try {
       const allMeta = await db.metadata.toArray();
-      updateTableProgress('metadata', { total: allMeta.length });
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'metadata', ids: allMeta.map(m => m.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newMeta = allMeta.filter(m => !existingSet.has(m.url));
+
+      updateTableProgress('metadata', { total: newMeta.length });
 
       const BATCH = 200;
-      for (let i = 0; i < allMeta.length; i += BATCH) {
+      for (let i = 0; i < newMeta.length; i += BATCH) {
         checkStop();
-        const batch = allMeta.slice(i, i + BATCH);
+        const batch = newMeta.slice(i, i + BATCH);
         for (const m of batch) {
           await target.putMetadata(m);
         }
-        updateTableProgress('metadata', { current: Math.min(i + BATCH, allMeta.length) });
+        updateTableProgress('metadata', { current: Math.min(i + BATCH, newMeta.length) });
       }
       updateTableProgress('metadata', { status: 'done' });
     } catch (e: any) {
@@ -222,10 +258,17 @@ export function useMigration() {
     updateTableProgress('resource', { status: 'running' });
     try {
       const allResources = await db.resource.toArray();
-      updateTableProgress('resource', { total: allResources.length });
-      for (let i = 0; i < allResources.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'resource', ids: allResources.map(r => r.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newResources = allResources.filter(r => !existingSet.has(r.url));
+
+      updateTableProgress('resource', { total: newResources.length });
+      for (let i = 0; i < newResources.length; i++) {
         checkStop();
-        await target.putResource(allResources[i]);
+        await target.putResource(newResources[i]);
         updateTableProgress('resource', { current: i + 1 });
       }
       updateTableProgress('resource', { status: 'done' });
@@ -239,10 +282,17 @@ export function useMigration() {
     updateTableProgress('resource-map', { status: 'running' });
     try {
       const allMaps = await db['resource-map'].toArray();
-      updateTableProgress('resource-map', { total: allMaps.length });
-      for (let i = 0; i < allMaps.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'resourceMap', ids: allMaps.map(m => m.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newMaps = allMaps.filter(m => !existingSet.has(m.url));
+
+      updateTableProgress('resource-map', { total: newMaps.length });
+      for (let i = 0; i < newMaps.length; i++) {
         checkStop();
-        await target.putResourceMap(allMaps[i]);
+        await target.putResourceMap(newMaps[i]);
         updateTableProgress('resource-map', { current: i + 1 });
       }
       updateTableProgress('resource-map', { status: 'done' });
@@ -256,10 +306,17 @@ export function useMigration() {
     updateTableProgress('asset', { status: 'running' });
     try {
       const allAssets = await db.asset.toArray();
-      updateTableProgress('asset', { total: allAssets.length });
-      for (let i = 0; i < allAssets.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'asset', ids: allAssets.map(a => a.url) },
+      });
+      const existingSet = new Set(existingIds);
+      const newAssets = allAssets.filter(a => !existingSet.has(a.url));
+
+      updateTableProgress('asset', { total: newAssets.length });
+      for (let i = 0; i < newAssets.length; i++) {
         checkStop();
-        await target.putAsset(allAssets[i]);
+        await target.putAsset(newAssets[i]);
         updateTableProgress('asset', { current: i + 1 });
       }
       updateTableProgress('asset', { status: 'done' });
@@ -273,10 +330,17 @@ export function useMigration() {
     updateTableProgress('watched_account', { status: 'running' });
     try {
       const allWatched = await source.getAllWatchedAccounts();
-      updateTableProgress('watched_account', { total: allWatched.length });
-      for (let i = 0; i < allWatched.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'watchedAccount', ids: allWatched.map(w => w.fakeid) },
+      });
+      const existingSet = new Set(existingIds);
+      const newWatched = allWatched.filter(w => !existingSet.has(w.fakeid));
+
+      updateTableProgress('watched_account', { total: newWatched.length });
+      for (let i = 0; i < newWatched.length; i++) {
         checkStop();
-        await target.putWatchedAccount(allWatched[i]);
+        await target.putWatchedAccount(newWatched[i]);
         updateTableProgress('watched_account', { current: i + 1 });
       }
       updateTableProgress('watched_account', { status: 'done' });
@@ -290,14 +354,21 @@ export function useMigration() {
     updateTableProgress('comment_monitor_task', { status: 'running' });
     try {
       const allTasks = await source.getAllCommentMonitorTasks();
-      updateTableProgress('comment_monitor_task', { total: allTasks.length });
-      for (let i = 0; i < allTasks.length; i++) {
+      const existingIds = await $fetch<string[]>('/api/db/sync/check', {
+        method: 'POST',
+        body: { table: 'commentMonitorTask', ids: allTasks.map(t => String(t.id)) },
+      });
+      const existingSet = new Set(existingIds);
+      const newTasks = allTasks.filter(t => !existingSet.has(String(t.id)));
+
+      updateTableProgress('comment_monitor_task', { total: newTasks.length });
+      for (let i = 0; i < newTasks.length; i++) {
         checkStop();
-        const { id, ...taskWithoutId } = allTasks[i];
+        const { id, ...taskWithoutId } = newTasks[i];
         // 迁移时保留原始 id
         await $fetch('/api/db/monitor-tasks', {
           method: 'POST',
-          body: { ...taskWithoutId, id, ...snakeCaseTask(allTasks[i]) },
+          body: { ...taskWithoutId, id, ...snakeCaseTask(newTasks[i]) },
         });
         updateTableProgress('comment_monitor_task', { current: i + 1 });
       }
@@ -320,10 +391,18 @@ export function useMigration() {
     updateTableProgress('info', { status: 'running' });
     try {
       const accounts = await source.getAllAccounts();
-      updateTableProgress('info', { total: accounts.length });
-      for (let i = 0; i < accounts.length; i++) {
+      const newAccounts = [];
+      for (const account of accounts) {
+        const exists = await target.getAccount(account.fakeid);
+        if (!exists) {
+          newAccounts.push(account);
+        }
+      }
+
+      updateTableProgress('info', { total: newAccounts.length });
+      for (let i = 0; i < newAccounts.length; i++) {
         checkStop();
-        await target.putAccount(accounts[i]);
+        await target.putAccount(newAccounts[i]);
         updateTableProgress('info', { current: i + 1 });
       }
       updateTableProgress('info', { status: 'done' });
@@ -337,36 +416,37 @@ export function useMigration() {
     updateTableProgress('article', { status: 'running' });
     try {
       const accounts = await source.getAllAccounts();
-      let totalArticles = 0;
-      let processedArticles = 0;
 
-      // 先统计总数
+      // 先收集所有远端文章
+      const allPgArticles = [];
       for (const account of accounts) {
         checkStop();
         const articles = await source.getArticles(account.fakeid);
-        totalArticles += articles.length;
+        allPgArticles.push(...articles);
       }
-      updateTableProgress('article', { total: totalArticles });
 
-      // 再逐个迁移
-      for (const account of accounts) {
-        checkStop();
-        const articles = await source.getArticles(account.fakeid);
-        if (articles.length > 0) {
-          const keys = articles.map(a => `${a.fakeid}:${a.aid}`);
-          await target.putArticles(articles, keys);
-          processedArticles += articles.length;
-          updateTableProgress('article', { current: processedArticles });
+      // 过滤已存在于本地的文章
+      const newArticles = [];
+      for (const a of allPgArticles) {
+        const exists = await target.getArticleByLink(a.link);
+        if (!exists) {
+          newArticles.push(a);
         }
       }
+
+      updateTableProgress('article', { total: newArticles.length });
+      if (newArticles.length > 0) {
+        const keys = newArticles.map(a => `${a.fakeid}:${a.aid}`);
+        await target.putArticles(newArticles, keys);
+      }
+      updateTableProgress('article', { current: newArticles.length });
       updateTableProgress('article', { status: 'done' });
     } catch (e: any) {
       updateTableProgress('article', { status: 'error', error: e.message });
       throw e;
     }
 
-    // 3-11: 对于 PG→IDB，需要服务端提供批量查询接口
-    // 此处使用简化版：按 account 逐个拉取
+    // 3-11: 对于 PG→IDB，检查本地已存在以跳过不必要的网络 Blob 请求
     const accounts = await source.getAllAccounts();
 
     for (const tableName of [
@@ -381,14 +461,47 @@ export function useMigration() {
       currentTable.value = tableName;
       updateTableProgress(tableName, { status: 'running' });
       try {
-        // 对于反向迁移，我们需要遍历已知的 URL
-        // 从已迁移的文章中获取所有 link
         const allArticles = await db.article.toArray();
         const urls = allArticles.map(a => a.link).filter(Boolean);
-        updateTableProgress(tableName, { total: urls.length });
+
+        // 增量过滤：判断本地是否已缓存
+        const urlsToFetch = [];
+        for (const url of urls) {
+          checkStop();
+          let exists = false;
+          switch (tableName) {
+            case 'html':
+              exists = (await target.getHtml(url)) !== undefined;
+              break;
+            case 'comment':
+              exists = (await target.getComment(url)) !== undefined;
+              break;
+            case 'metadata':
+              exists = (await target.getMetadata(url)) !== undefined;
+              break;
+            case 'resource':
+              exists = (await target.getResource(url)) !== undefined;
+              break;
+            case 'resource-map':
+              exists = (await target.getResourceMap(url)) !== undefined;
+              break;
+            case 'asset':
+              exists = (await target.getAsset(url)) !== undefined;
+              break;
+            case 'comment_reply':
+              const count = await db.comment_reply.where('url').equals(url).count();
+              exists = count > 0;
+              break;
+          }
+          if (!exists) {
+            urlsToFetch.push(url);
+          }
+        }
+
+        updateTableProgress(tableName, { total: urlsToFetch.length });
 
         let processed = 0;
-        for (const url of urls) {
+        for (const url of urlsToFetch) {
           checkStop();
           try {
             switch (tableName) {
@@ -422,10 +535,6 @@ export function useMigration() {
                 if (data) await target.putAsset(data);
                 break;
               }
-              case 'comment_reply': {
-                // 跳过，需要额外逻辑
-                break;
-              }
             }
           } catch {
             // 单条失败不中断
@@ -436,7 +545,6 @@ export function useMigration() {
         updateTableProgress(tableName, { status: 'done' });
       } catch (e: any) {
         updateTableProgress(tableName, { status: 'error', error: e.message });
-        // 不中断，继续下一张表
       }
     }
 
@@ -445,10 +553,14 @@ export function useMigration() {
     updateTableProgress('watched_account', { status: 'running' });
     try {
       const watched = await source.getAllWatchedAccounts();
-      updateTableProgress('watched_account', { total: watched.length });
-      for (let i = 0; i < watched.length; i++) {
+      const existing = await target.getAllWatchedAccounts();
+      const existingSet = new Set(existing.map(x => x.fakeid));
+      const newWatched = watched.filter(w => !existingSet.has(w.fakeid));
+
+      updateTableProgress('watched_account', { total: newWatched.length });
+      for (let i = 0; i < newWatched.length; i++) {
         checkStop();
-        await target.putWatchedAccount(watched[i]);
+        await target.putWatchedAccount(newWatched[i]);
         updateTableProgress('watched_account', { current: i + 1 });
       }
       updateTableProgress('watched_account', { status: 'done' });
@@ -461,10 +573,14 @@ export function useMigration() {
     updateTableProgress('comment_monitor_task', { status: 'running' });
     try {
       const tasks = await source.getAllCommentMonitorTasks();
-      updateTableProgress('comment_monitor_task', { total: tasks.length });
-      for (let i = 0; i < tasks.length; i++) {
+      const existing = await target.getAllCommentMonitorTasks();
+      const existingSet = new Set(existing.map(t => String(t.id)));
+      const newTasks = tasks.filter(t => !existingSet.has(String(t.id)));
+
+      updateTableProgress('comment_monitor_task', { total: newTasks.length });
+      for (let i = 0; i < newTasks.length; i++) {
         checkStop();
-        const { id, ...taskWithoutId } = tasks[i];
+        const { id, ...taskWithoutId } = newTasks[i];
         await target.createCommentMonitorTask(taskWithoutId);
         updateTableProgress('comment_monitor_task', { current: i + 1 });
       }

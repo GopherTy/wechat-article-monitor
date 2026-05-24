@@ -360,7 +360,7 @@ const loading = ref(false);
 
 // 分页状态
 const currentPage = ref(1);
-const pageSize = ref(50);
+const pageSize = ref(20);
 const totalArticles = ref(0);
 
 // 只能选择单个账号

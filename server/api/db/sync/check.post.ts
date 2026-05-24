@@ -23,6 +23,11 @@ export default defineEventHandler(async event => {
     mpAccount: schema.mpAccount,
     comment: schema.comment,
     commentReply: schema.commentReply,
+    metadata: schema.metadata,
+    resource: schema.resource,
+    resourceMap: schema.resourceMap,
+    watchedAccount: schema.watchedAccount,
+    commentMonitorTask: schema.commentMonitorTask,
   };
 
   const tableSchema = tableMap[table];
@@ -30,8 +35,8 @@ export default defineEventHandler(async event => {
     throw createError({ statusCode: 400, message: `Invalid table: ${table}` });
   }
 
-  // 确定主键字段名（url 或 id）
-  const pk = tableSchema.url || tableSchema.id;
+  // 确定主键字段名（url 或 id 或 fakeid）
+  const pk = tableSchema.url || tableSchema.id || tableSchema.fakeid;
   if (!pk) {
     throw createError({ statusCode: 400, message: `Table ${table} does not have a supported ID field` });
   }

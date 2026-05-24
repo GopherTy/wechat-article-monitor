@@ -9,7 +9,7 @@
       @click="show = false"
     ></UButton>
     <client-only>
-      <iframe class="border-none w-full h-screen" :srcdoc="htmlContent"></iframe>
+      <iframe class="border-none w-full h-screen" referrerpolicy="no-referrer" :srcdoc="htmlContent"></iframe>
     </client-only>
   </div>
 </template>
@@ -29,8 +29,12 @@ const htmlContent = ref('');
 watch(
   () => props.html,
   (newHtml: string) => {
-    // 使用DOMPurify来清理HTML内容，防止XSS攻击
-    htmlContent.value = DOMPurify.sanitize(newHtml, { WHOLE_DOCUMENT: true });
+    // 使用DOMPurify来清理HTML内容，防止XSS攻击。添加 meta 与 referrerpolicy 支持以保证图片防盗链生效。
+    htmlContent.value = DOMPurify.sanitize(newHtml, {
+      WHOLE_DOCUMENT: true,
+      ADD_TAGS: ['meta'],
+      ADD_ATTR: ['name', 'content', 'referrerpolicy'],
+    });
   },
   { immediate: true }
 );

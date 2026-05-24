@@ -103,6 +103,19 @@ export function extractArticleMeta(html: string): {
   return { biz, mid, idx };
 }
 
+function cleanLogoUrl(url: string | null | undefined): string {
+  if (!url) {
+    // 优雅的 SVG 用户头像占位图
+    return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cbd5e1" width="100%25" height="100%25"><circle cx="12" cy="12" r="10" fill="%23e2e8f0"/><path fill="%2394a3b8" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+  }
+  let clean = url.trim();
+  // 协议转换为 https，解决 Mixed Content 混合内容拦截
+  if (clean.startsWith('http://')) {
+    clean = 'https://' + clean.slice(7);
+  }
+  return clean;
+}
+
 /**
  * 渲染文章的评论内容
  * @param url 文章链接
@@ -123,10 +136,11 @@ export async function renderCommentSection(
 
     for (const comment of comments) {
       commentHTML += '<div style="margin-top: 25px;"><div style="display: flex;">';
+      const commentLogo = cleanLogoUrl(comment.logo_url);
       if ([1, 2].includes(comment.identity_type)) {
-        commentHTML += `<img src="${comment.logo_url}" style="display: block;width: 30px;height: 30px;border-radius: 50%;margin-right: 8px;" alt="">`;
+        commentHTML += `<img src="${commentLogo}" referrerpolicy="no-referrer" style="display: block;width: 30px;height: 30px;border-radius: 50%;margin-right: 8px;" alt="">`;
       } else {
-        commentHTML += `<img src="${comment.logo_url}" style="display: block;width: 30px;height: 30px;border-radius: 2px;margin-right: 8px;" alt="">`;
+        commentHTML += `<img src="${commentLogo}" referrerpolicy="no-referrer" style="display: block;width: 30px;height: 30px;border-radius: 2px;margin-right: 8px;" alt="">`;
       }
       commentHTML += '<div style="flex: 1;"><p style="display: flex;line-height: 16px;margin-block: 5px;">';
       commentHTML += `<span style="margin-right: 5px;font-size: 15px;color: #949494;">${comment.nick_name}</span>`;
@@ -167,10 +181,11 @@ export async function renderCommentSection(
         .sort((a: any, b: any) => a.create_time - b.create_time)
         .forEach((reply: any) => {
           commentHTML += '<div style="display: flex;margin-top: 15px;">';
+          const replyLogo = cleanLogoUrl(reply.logo_url);
           if ([1, 2].includes(reply.identity_type)) {
-            commentHTML += `<img src="${reply.logo_url}" style="display: block;width: 23px;height: 23px;border-radius: 50%;margin-right: 8px;" alt="">`;
+            commentHTML += `<img src="${replyLogo}" referrerpolicy="no-referrer" style="display: block;width: 23px;height: 23px;border-radius: 50%;margin-right: 8px;" alt="">`;
           } else {
-            commentHTML += `<img src="${reply.logo_url}" style="display: block;width: 23px;height: 23px;border-radius: 2px;margin-right: 8px;" alt="">`;
+            commentHTML += `<img src="${replyLogo}" referrerpolicy="no-referrer" style="display: block;width: 23px;height: 23px;border-radius: 2px;margin-right: 8px;" alt="">`;
           }
           commentHTML += '<div style="flex: 1;"><p style="display: flex;line-height: 16px;margin-block: 5px;">';
           commentHTML += `<span style="margin-right: 5px;font-size: 15px;color: #949494;">${reply.nick_name}</span>`;
