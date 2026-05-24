@@ -590,12 +590,12 @@ async function removeRows() {
 
     <div class="flex flex-col h-full divide-y divide-gray-200">
       <!-- 顶部操作区 -->
-      <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-3 py-3">
-        <div class="flex flex-1 gap-3">
+      <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between px-3 py-3 shrink-0 w-full overflow-hidden">
+        <div class="flex flex-1 gap-3 w-full">
           <UInput v-model="inputUrl" placeholder="请输入公众号文章链接" class="flex-1" @keyup.enter="addArticle" />
           <UButton color="blue" @click="addArticle">添加</UButton>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <ButtonGroup
             :items="[
               { label: '修复fakeid', event: 'fix-fakeid' },
