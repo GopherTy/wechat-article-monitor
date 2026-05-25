@@ -16,14 +16,14 @@
           >
             <template #label>
               <div v-if="selectedAccount" class="flex items-center gap-2">
-                <UAvatar :src="selectedAccount.round_head_img || '/avatar-default.png'" size="2xs" />
+                <UAvatar :src="selectedAccount.round_head_img ? IMAGE_PROXY + selectedAccount.round_head_img : '/avatar-default.png'" size="2xs" />
                 <span class="truncate font-medium">{{ selectedAccount.nickname }}</span>
               </div>
               <span v-else class="text-slate-400">选择公众号...</span>
             </template>
             <template #option="{ option }">
               <div class="flex items-center gap-2 py-0.5">
-                <UAvatar :src="option.round_head_img || '/avatar-default.png'" size="2xs" />
+                <UAvatar :src="option.round_head_img ? IMAGE_PROXY + option.round_head_img : '/avatar-default.png'" size="2xs" />
                 <span class="truncate font-medium text-xs">{{ option.nickname }}</span>
               </div>
             </template>
@@ -235,6 +235,7 @@ import { renderHTMLFromCgiDataNew } from '#shared/utils/renderer';
 import usePreferences from '~/composables/usePreferences';
 import { type ArticleAsset, getArticleCache } from '~/store/v2/article';
 import { getHtmlCache } from '~/store/v2/html';
+import { IMAGE_PROXY } from '~/config';
 import { getAllInfo, type MpAccount } from '~/store/v2/info';
 import type { Preferences } from '~/types/preferences';
 
