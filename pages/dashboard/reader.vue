@@ -113,9 +113,10 @@
               variant="ghost"
               size="sm"
               class="md:hidden mr-1"
-              label="返回"
               @click="selectedArticle = null"
-            />
+            >
+              <span class="hidden xs:inline">返回</span>
+            </UButton>
 
             <UButtonGroup size="xs" variant="ghost">
               <UButton
@@ -233,9 +234,9 @@ import DOMPurify from 'dompurify';
 import { parseCgiDataNew } from '#shared/utils/html';
 import { renderHTMLFromCgiDataNew } from '#shared/utils/renderer';
 import usePreferences from '~/composables/usePreferences';
+import { IMAGE_PROXY } from '~/config';
 import { type ArticleAsset, getArticleCache } from '~/store/v2/article';
 import { getHtmlCache } from '~/store/v2/html';
-import { IMAGE_PROXY } from '~/config';
 import { getAllInfo, type MpAccount } from '~/store/v2/info';
 import type { Preferences } from '~/types/preferences';
 
@@ -278,7 +279,8 @@ const styledHtmlContent = computed(() => {
   });
   const themeObj = currentThemeObj.value;
   const isDark = themeObj.id === 'dark';
-  const darkOverrides = isDark ? `
+  const darkOverrides = isDark
+    ? `
     html, body, 
     html body .__page_content__, 
     html body .__page_content__ *,
@@ -307,7 +309,8 @@ const styledHtmlContent = computed(() => {
     html a, body a, html a *, body a * {
       color: #3b82f6 !important;
     }
-  ` : '';
+  `
+    : '';
 
   // 渲染排版 CSS overrides
   const themeStyles = `
@@ -323,45 +326,147 @@ const styledHtmlContent = computed(() => {
       padding: 50px 30px !important;
       max-width: 680px !important;
       margin: 0 auto !important;
+      word-wrap: break-word !important;
+    }
+    @media (max-width: 640px) {
+      body {
+        padding: 24px 16px !important;
+      }
     }
     #js_content {
       visibility: visible !important;
     }
     p {
-      margin-bottom: 1.6em !important;
+      margin-top: 0 !important;
+      margin-bottom: 1.5em !important;
       text-align: justify !important;
+      text-justify: inter-word !important;
+      letter-spacing: 0.03em !important;
     }
-    /* 仅对文章正文中的插图进行精美排版和投影，避免影响留言栏的头像样式 */
+    /* 极致保险：微信有些图或者宽表格宽度溢出，强力拦截并适配 */
+    .rich_media_content {
+      overflow-x: hidden !important;
+    }
+    /* 仅对文章正文中的插图进行精美排版和投影，避免影响留言栏和表情等头像样式 */
     .__page_content__ section img {
       max-width: 100% !important;
       height: auto !important;
       border-radius: 8px !important;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
-      margin: 1.8em auto !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+      margin: 1.6em auto !important;
       display: block !important;
+    }
+    /* 文章头部/小字/引言 */
+    .rich_media_meta_list, .profile_container {
+      display: none !important; /* 隐藏微信原生头部 profile 卡片以防干扰排版 */
     }
     a {
       color: #3b82f6 !important;
       text-decoration: underline !important;
     }
-    /* 评论渲染样式增强 */
+    /* 标题排版设计 */
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 700 !important;
+      line-height: 1.4 !important;
+      margin-top: 1.8em !important;
+      margin-bottom: 0.8em !important;
+      color: ${isDark ? '#f3f4f6' : '#111827'} !important;
+    }
+    h1 { font-size: 1.5em !important; }
+    h2 { 
+      font-size: 1.35em !important; 
+      border-bottom: 2px solid ${themeObj.border} !important; 
+      padding-bottom: 0.4em !important; 
+    }
+    h3 { font-size: 1.2em !important; }
+    
+    /* 响应式表格设计 */
+    table {
+      width: 100% !important;
+      max-width: 100% !important;
+      border-collapse: collapse !important;
+      margin: 1.6em 0 !important;
+      overflow-x: auto !important;
+      display: block !important;
+    }
+    th, td {
+      border: 1px solid ${themeObj.border} !important;
+      padding: 8px 12px !important;
+      font-size: 0.9em !important;
+    }
+    
+    /* 优雅的代码块样式 */
+    pre, code {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace !important;
+      font-size: 0.85em !important;
+      background-color: ${isDark ? '#262626' : '#f5f5f5'} !important;
+      border-radius: 6px !important;
+    }
+    pre {
+      padding: 12px 16px !important;
+      overflow-x: auto !important;
+      margin: 1.6em 0 !important;
+      line-height: 1.5 !important;
+    }
+    code {
+      padding: 2px 6px !important;
+      margin: 0 4px !important;
+    }
+    pre code {
+      padding: 0 !important;
+      margin: 0 !important;
+      background-color: transparent !important;
+    }
+    
+    /* 评论渲染样式增强（评论卡片化） */
     .comment_area {
-      margin-top: 40px !important;
-      border-top: 1px solid ${themeObj.border} !important;
-      padding-top: 20px !important;
+      margin-top: 50px !important;
+      border-top: 2px solid ${themeObj.border} !important;
+      padding-top: 30px !important;
     }
     .comment_item {
-      padding: 12px 0 !important;
-      border-bottom: 1px dashed ${themeObj.border} !important;
+      display: flex !important;
+      gap: 12px !important;
+      padding: 16px 0 !important;
+      border-bottom: 1px solid ${themeObj.border} !important;
+    }
+    .comment_item img {
+      width: 32px !important;
+      height: 32px !important;
+      border-radius: 50% !important;
+      flex-shrink: 0 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+    }
+    .comment_main {
+      flex: 1 !important;
+    }
+    .comment_header {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      margin-bottom: 4px !important;
     }
     .comment_author {
-      font-weight: bold !important;
+      font-weight: 600 !important;
       font-size: 0.9em !important;
+      color: ${isDark ? '#9ca3af' : '#4b5563'} !important;
     }
     .comment_content {
       font-size: 0.95em !important;
+      line-height: 1.6 !important;
+      color: ${themeObj.text} !important;
       margin-top: 4px !important;
     }
+    .comment_reply {
+      margin-top: 8px !important;
+      padding: 8px 12px !important;
+      background-color: ${isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'} !important;
+      border-left: 3px solid ${themeObj.border} !important;
+      border-radius: 4px !important;
+      font-size: 0.9em !important;
+    }
+    
     /* 滚动条 */
     ::-webkit-scrollbar {
       width: 6px;

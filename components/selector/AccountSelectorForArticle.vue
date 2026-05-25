@@ -1,6 +1,7 @@
 <template>
   <USelectMenu
     v-model="selected"
+    by="fakeid"
     size="md"
     color="gray"
     searchable
@@ -13,7 +14,7 @@
     <template #label>
       <UAvatar
         v-if="selected"
-        :src="selected.round_head_img ? IMAGE_PROXY + selected.round_head_img : '/avatar-default.png'"
+        :src="getAvatarUrl(selected.round_head_img)"
         size="2xs"
       />
       <span v-if="selected" class="max-w-[120px] sm:max-w-[200px] truncate">{{ selected.nickname }}</span>
@@ -21,7 +22,7 @@
     </template>
     <template #option="{ option: account }">
       <UAvatar
-        :src="account.round_head_img ? IMAGE_PROXY + account.round_head_img : '/avatar-default.png'"
+        :src="getAvatarUrl(account.round_head_img)"
         size="sm"
       />
       <div>
@@ -44,16 +45,36 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
 import { IMAGE_PROXY } from '~/config';
 import { getAllInfo, type MpAccount } from '~/store/v2/info';
 
-// 已缓存的公众号信息（排除特殊的单篇临时缓存占位符）
-const cachedAccountInfos = (await getAllInfo()).filter(item => item.fakeid !== 'SINGLE_ARTICLE_FAKEID');
-
-// 在静态数据上原位排序，保持数组引用绝对稳定
-cachedAccountInfos.sort((a, b) => b.articles - a.articles);
-
-const sortedAccountInfos = cachedAccountInfos;
-
 const selected = defineModel<MpAccount | undefined>();
+
+// 已缓存的公众号信息（排除特殊的单篇临时缓存占位符）
+const cachedAccountInfos = ref<MpAccount[]>([]);
+
+onMounted(async () => {
+  try {
+    const list = await getAllInfo();
+    cachedAccountInfos.value = list;
+  } catch (err) {
+    console.error('[AccountSelectorForArticle] Failed to load accounts:', err);
+  }
+});
+
+const sortedAccountInfos = computed(() => {
+  const filtered = cachedAccountInfos.value.filter(item => item.fakeid !== 'SINGLE_ARTICLE_FAKEID');
+  filtered.sort((a, b) => (b.articles || 0) - (a.articles || 0));
+  return filtered;
+});
+
+// 微信防盗链代理与默认头像路径安全判断函数
+function getAvatarUrl(url?: string) {
+  if (!url) return '/avatar-default.png';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return IMAGE_PROXY + url;
+  }
+  return url;
+}
 </script>

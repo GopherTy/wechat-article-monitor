@@ -60,8 +60,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import BottomPanel from '~/components/dashboard/BottomPanel.vue';
 import GlobalActions from '~/components/dashboard/Actions.vue';
+import BottomPanel from '~/components/dashboard/BottomPanel.vue';
 import NavMenus from '~/components/dashboard/NavMenus.vue';
 import SideBar from '~/components/dashboard/SideBar.vue';
 import { websiteName } from '~/config';

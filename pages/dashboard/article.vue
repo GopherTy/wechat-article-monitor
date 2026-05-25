@@ -562,10 +562,10 @@ function copyWechatLink() {
 
     <div class="flex flex-col h-full divide-y divide-gray-200">
       <!-- 顶部筛选与操作区 -->
-      <header class="flex flex-col items-start lg:flex-row lg:items-center lg:justify-between gap-2 px-3 py-2 shrink-0 w-full overflow-hidden">
+      <header class="flex flex-col items-start lg:flex-row lg:items-center lg:justify-between gap-2 px-3 py-2 shrink-0 w-full">
         <div class="flex flex-col xl:flex-row gap-2 w-full lg:w-auto">
-          <div class="flex w-full">
-            <AccountSelectorForArticle v-model="selectedAccount" class="w-full sm:w-80 max-w-full" />
+          <div class="flex items-center space-x-3 w-full sm:w-auto">
+            <AccountSelectorForArticle v-model="selectedAccount" class="w-80 max-w-full" />
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
