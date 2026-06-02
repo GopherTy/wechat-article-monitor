@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-30',
@@ -51,6 +53,19 @@ export default defineNuxtConfig({
         // Increase the maximum body size to 50MB (52428800 bytes) to allow large HTML / Base64 uploads
         // h3 uses this value to enforce request body limits.
       },
+    },
+  },
+  vite: {
+    resolve: {
+      alias:
+        process.env.NODE_ENV === 'development'
+          ? {
+              // Nuxt 3.20's client dev transform may still try to resolve this server-only dynamic import.
+              '#app-manifest': fileURLToPath(
+                new URL('./node_modules/unenv/dist/runtime/mock/empty.mjs', import.meta.url)
+              ),
+            }
+          : {},
     },
   },
   monacoEditor: {

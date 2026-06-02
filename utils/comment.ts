@@ -130,33 +130,36 @@ export async function renderCommentSection(
 ) {
   let commentHTML = '';
   if (comments.length > 0) {
-    commentHTML += '<div style="max-width: 667px;margin: 0 auto;padding: 10px 10px 80px;">';
-    commentHTML += `<p style="font-size: 15px;color: ${options.titleColor || '#949494'};">${options.title || `留言 ${comments.length}`}</p>`;
-    commentHTML += '<div style="margin-top: -10px;">';
+    commentHTML += '<div class="comment_area" style="max-width: 667px;margin: 0 auto;padding: 10px 10px 80px;">';
+    commentHTML += `<p class="comment_title" style="font-size: 15px;color: ${options.titleColor || '#949494'};">${options.title || `留言 ${comments.length}`}</p>`;
+    commentHTML += '<div class="comment_list" style="margin-top: -10px;">';
 
     for (const comment of comments) {
-      commentHTML += '<div style="margin-top: 25px;"><div style="display: flex;">';
+      commentHTML += '<div class="comment_item" style="margin-top: 25px;"><div style="display: flex;">';
       const commentLogo = cleanLogoUrl(comment.logo_url);
       if ([1, 2].includes(comment.identity_type)) {
         commentHTML += `<img src="${commentLogo}" referrerpolicy="no-referrer" style="display: block;width: 30px;height: 30px;border-radius: 50%;margin-right: 8px;" alt="">`;
       } else {
         commentHTML += `<img src="${commentLogo}" referrerpolicy="no-referrer" style="display: block;width: 30px;height: 30px;border-radius: 2px;margin-right: 8px;" alt="">`;
       }
-      commentHTML += '<div style="flex: 1;"><p style="display: flex;line-height: 16px;margin-block: 5px;">';
-      commentHTML += `<span style="margin-right: 5px;font-size: 15px;color: #949494;">${comment.nick_name}</span>`;
+      commentHTML +=
+        '<div style="flex: 1;"><p class="comment_header" style="display: flex;line-height: 16px;margin-block: 5px;">';
+      commentHTML += `<span class="comment_author" style="margin-right: 5px;font-size: 15px;color: #949494;">${comment.nick_name}</span>`;
       if (comment.is_from_friend === 1) {
-        commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #00BA5A;">朋友</span>`;
+        commentHTML +=
+          '<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #00BA5A;">朋友</span>';
       }
       if (comment.ip_wording) {
-        commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #b5b5b5;">${comment.ip_wording?.province_name}</span>`;
+        commentHTML += `<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #b5b5b5;">${comment.ip_wording?.province_name}</span>`;
       } else {
-        commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #00BA5A;">作者</span>`;
+        commentHTML +=
+          '<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #00BA5A;">作者</span>';
       }
-      commentHTML += `<span style="font-size: 12px;color: #b5b5b5;">${formatTimeStamp(comment.create_time)}</span>`;
+      commentHTML += `<span class="comment_time" style="font-size: 12px;color: #b5b5b5;">${formatTimeStamp(comment.create_time)}</span>`;
       commentHTML += '<span style="flex: 1;"></span><span style="display: inline-flex;align-items: center;">';
       commentHTML += `<span class="sns_opr_btn sns_praise_btn" style="font-size: 12px;color: #8b8a8a;">${comment.like_num || ''}</span>`;
       commentHTML += '</span></p>';
-      commentHTML += `<p style="font-size: 15px;color: #333;white-space: pre-line;margin-block: .5em;">${comment.content}</p>`;
+      commentHTML += `<p class="comment_content" style="font-size: 15px;color: #333;white-space: pre-line;margin-block: .5em;">${comment.content}</p>`;
       if (comment.multi_info && comment.multi_info.pictures && comment.multi_info.pictures.length > 0) {
         commentHTML += `<p>${comment.multi_info.pictures.map((pic: any) => '<img src="' + pic.url + '" style="max-width: 100%;" alt="">').join('')}</p>`;
       }
@@ -176,33 +179,36 @@ export async function renderCommentSection(
       } else if (comment.reply_new && comment.reply_new.reply_list.length > 0) {
         reply_list = comment.reply_new.reply_list;
       }
-      commentHTML += '<div style="padding-left: 38px;">';
+      commentHTML += '<div class="comment_replies" style="padding-left: 38px;">';
       reply_list
         .sort((a: any, b: any) => a.create_time - b.create_time)
         .forEach((reply: any) => {
-          commentHTML += '<div style="display: flex;margin-top: 15px;">';
+          commentHTML += '<div class="comment_reply" style="display: flex;margin-top: 15px;">';
           const replyLogo = cleanLogoUrl(reply.logo_url);
           if ([1, 2].includes(reply.identity_type)) {
             commentHTML += `<img src="${replyLogo}" referrerpolicy="no-referrer" style="display: block;width: 23px;height: 23px;border-radius: 50%;margin-right: 8px;" alt="">`;
           } else {
             commentHTML += `<img src="${replyLogo}" referrerpolicy="no-referrer" style="display: block;width: 23px;height: 23px;border-radius: 2px;margin-right: 8px;" alt="">`;
           }
-          commentHTML += '<div style="flex: 1;"><p style="display: flex;line-height: 16px;margin-block: 5px;">';
-          commentHTML += `<span style="margin-right: 5px;font-size: 15px;color: #949494;">${reply.nick_name}</span>`;
+          commentHTML +=
+            '<div style="flex: 1;"><p class="comment_header" style="display: flex;line-height: 16px;margin-block: 5px;">';
+          commentHTML += `<span class="comment_author" style="margin-right: 5px;font-size: 15px;color: #949494;">${reply.nick_name}</span>`;
           if (reply.is_from_friend === 1) {
-            commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #00BA5A;">朋友</span>`;
+            commentHTML +=
+              '<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #00BA5A;">朋友</span>';
           }
           if (reply.ip_wording) {
-            commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #b5b5b5;">${reply.ip_wording?.province_name}</span>`;
+            commentHTML += `<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #b5b5b5;">${reply.ip_wording?.province_name}</span>`;
           } else {
-            commentHTML += `<span style="margin-right: 5px;font-size: 12px;color: #00BA5A;">作者</span>`;
+            commentHTML +=
+              '<span class="comment_badge" style="margin-right: 5px;font-size: 12px;color: #00BA5A;">作者</span>';
           }
-          commentHTML += `<span style="font-size: 12px;color: #b5b5b5;">${formatTimeStamp(reply.create_time)}</span>`;
+          commentHTML += `<span class="comment_time" style="font-size: 12px;color: #b5b5b5;">${formatTimeStamp(reply.create_time)}</span>`;
           commentHTML +=
             '<span style="flex: 1;"></span><span style="display: inline-flex;align-items: center; font-size: 12px;color: #b5b5b5;">';
           commentHTML += `<span class="sns_opr_btn sns_praise_btn" style="font-size: 12px;color: #8b8a8a;">${reply.reply_like_num || ''}</span>`;
           commentHTML += '</span></p>';
-          commentHTML += `<p style="font-size: 15px;color: #333;white-space: pre-line;margin-block: .5em;">${reply.to_nick_name ? '回复 ' + reply.to_nick_name + ':' : ''} ${reply.content}</p>`;
+          commentHTML += `<p class="comment_content" style="font-size: 15px;color: #333;white-space: pre-line;margin-block: .5em;">${reply.to_nick_name ? '回复 ' + reply.to_nick_name + ':' : ''} ${reply.content}</p>`;
           if (reply.multi_info && reply.multi_info.pictures && reply.multi_info.pictures.length > 0) {
             commentHTML += `<p>${reply.multi_info.pictures.map((pic: any) => '<img src="' + pic.url + '" style="max-width: 100%;" alt="">').join('')}</p>`;
           }

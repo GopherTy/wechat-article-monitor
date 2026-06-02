@@ -141,6 +141,23 @@
               class="hidden sm:inline-flex"
               @click="openOriginalLink"
             />
+            <UButton
+              icon="i-heroicons-printer"
+              color="gray"
+              variant="link"
+              size="xs"
+              label="打印"
+              class="hidden sm:inline-flex"
+              :disabled="!rawHtmlContent || loadingHtml || printing"
+              :loading="printing"
+              @click="printArticle"
+            />
+            <UCheckbox
+              v-model="includeComments"
+              label="打印留言"
+              class="hidden sm:flex"
+              :disabled="!selectedArticle || loadingHtml"
+            />
           </div>
 
           <!-- 缩放与主题 -->
@@ -217,6 +234,7 @@
           <client-only v-else>
             <iframe
               :key="`${selectedArticle?.aid}_${activeTheme}_${fontSize}`"
+              ref="articleFrameRef"
               class="border-none w-full h-full"
               referrerpolicy="no-referrer"
               :srcdoc="styledHtmlContent"
@@ -239,6 +257,7 @@ import { type ArticleAsset, getArticleCache } from '~/store/v2/article';
 import { getHtmlCache } from '~/store/v2/html';
 import { getAllInfo, type MpAccount } from '~/store/v2/info';
 import type { Preferences } from '~/types/preferences';
+import { printIframe } from '~/utils/print';
 
 const accounts = ref<MpAccount[]>([]);
 const selectedAccount = ref<MpAccount | null>(null);
@@ -252,8 +271,13 @@ const loadingHtml = ref(false);
 const rawHtmlContent = ref('');
 const fontSize = ref(16);
 const activeTheme = ref('sepia');
+const articleFrameRef = ref<HTMLIFrameElement | null>(null);
+const articleCgiData = shallowRef<any | null>(null);
+const printing = ref(false);
 
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
+const includeComments = ref(Boolean(preferences.value?.exportConfig?.exportHtmlIncludeComments));
+let renderToken = 0;
 
 const themes = [
   { id: 'light', name: '清爽纸白', bg: '#ffffff', text: '#2d3748', border: '#e2e8f0', frameBg: '#f7fafc' },
@@ -309,6 +333,16 @@ const styledHtmlContent = computed(() => {
     html a, body a, html a *, body a * {
       color: #3b82f6 !important;
     }
+    .comment_title,
+    .comment_author,
+    .comment_content {
+      color: ${themeObj.text} !important;
+    }
+    .comment_badge,
+    .comment_time,
+    .comment_area .sns_opr_btn {
+      color: #9ca3af !important;
+    }
   `
     : '';
 
@@ -333,10 +367,65 @@ const styledHtmlContent = computed(() => {
         padding: 24px 16px !important;
       }
     }
+    @media print {
+      html, body {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+        transition: none !important;
+      }
+      body {
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 13px !important;
+        line-height: 1.55 !important;
+      }
+      .__page_content__ {
+        max-width: none !important;
+        padding: 0 !important;
+        padding-bottom: 0 !important;
+      }
+      @page {
+        size: auto;
+        margin: 10mm 9mm;
+      }
+      * {
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+        box-shadow: none !important;
+      }
+      img, svg, video, iframe, table, pre, blockquote {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      a {
+        color: #111827 !important;
+        text-decoration: none !important;
+      }
+      .__bottom-bar__,
+      #js_article_bottom_bar,
+      #js_bar_profile,
+      #js_top_profile,
+      .rich_media_tool,
+      .rich_media_extra,
+      .rich_media_meta_list,
+      .profile_container,
+      .wx_follow,
+      .wx_follow_context,
+      .wx_follow_avatar,
+      .wx_follow_nickname {
+        display: none !important;
+      }
+      .__page_content__ section img {
+        border-radius: 0 !important;
+        margin: 0.6em auto !important;
+      }
+    }
     #js_content {
       visibility: visible !important;
     }
-    p {
+    #js_content p {
       margin-top: 0 !important;
       margin-bottom: 1.5em !important;
       text-align: justify !important;
@@ -418,53 +507,121 @@ const styledHtmlContent = computed(() => {
       background-color: transparent !important;
     }
     
-    /* 评论渲染样式增强（评论卡片化） */
+    /* 留言跟随正文排版体系，避免和阅读器形成两套视觉语言 */
     .comment_area {
-      margin-top: 50px !important;
-      border-top: 2px solid ${themeObj.border} !important;
-      padding-top: 30px !important;
+      max-width: none !important;
+      margin: 3em 0 0 !important;
+      padding: 1.5em 0 0 !important;
+      border-top: 0 !important;
+      color: ${themeObj.text} !important;
+      background: transparent !important;
+    }
+    .comment_title {
+      margin: 0 0 1em !important;
+      color: ${themeObj.text} !important;
+      font-size: 1em !important;
+      font-weight: 700 !important;
+      line-height: 1.5 !important;
+      letter-spacing: 0 !important;
+    }
+    .comment_list {
+      margin-top: 0 !important;
     }
     .comment_item {
-      display: flex !important;
-      gap: 12px !important;
-      padding: 16px 0 !important;
-      border-bottom: 1px solid ${themeObj.border} !important;
+      display: block !important;
+      margin-top: 0 !important;
+      padding: 1.15em 0 !important;
+      border-bottom: 0 !important;
+      background: transparent !important;
     }
-    .comment_item img {
-      width: 32px !important;
-      height: 32px !important;
+    .comment_item > div:first-child {
+      display: flex !important;
+      gap: 0.75em !important;
+      align-items: flex-start !important;
+    }
+    .comment_item > div:first-child > div {
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+    .comment_item > div:first-child > img {
+      width: 2em !important;
+      height: 2em !important;
       border-radius: 50% !important;
       flex-shrink: 0 !important;
-      margin: 0 !important;
+      margin: 0.15em 0 0 !important;
       box-shadow: none !important;
-    }
-    .comment_main {
-      flex: 1 !important;
     }
     .comment_header {
       display: flex !important;
-      justify-content: space-between !important;
-      align-items: center !important;
-      margin-bottom: 4px !important;
+      flex-wrap: wrap !important;
+      gap: 0.25em 0.5em !important;
+      align-items: baseline !important;
+      margin: 0 0 0.25em !important;
+      line-height: 1.45 !important;
+      letter-spacing: 0 !important;
     }
     .comment_author {
       font-weight: 600 !important;
-      font-size: 0.9em !important;
-      color: ${isDark ? '#9ca3af' : '#4b5563'} !important;
+      font-size: 0.92em !important;
+      color: ${themeObj.text} !important;
+    }
+    .comment_badge,
+    .comment_time,
+    .comment_area .sns_opr_btn {
+      color: ${isDark ? '#9ca3af' : '#6b7280'} !important;
+      font-size: 0.78em !important;
+      line-height: 1.45 !important;
     }
     .comment_content {
-      font-size: 0.95em !important;
-      line-height: 1.6 !important;
+      font-size: 1em !important;
+      line-height: 1.85 !important;
       color: ${themeObj.text} !important;
-      margin-top: 4px !important;
+      margin: 0.2em 0 0 !important;
+      text-align: justify !important;
+      text-justify: inter-word !important;
+      letter-spacing: 0.03em !important;
+      white-space: pre-line !important;
+    }
+    .comment_replies {
+      margin: 0.75em 0 0 !important;
+      padding-left: 2.75em !important;
     }
     .comment_reply {
-      margin-top: 8px !important;
-      padding: 8px 12px !important;
-      background-color: ${isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.02)'} !important;
-      border-left: 3px solid ${themeObj.border} !important;
-      border-radius: 4px !important;
-      font-size: 0.9em !important;
+      display: flex !important;
+      gap: 0.65em !important;
+      margin-top: 0.75em !important;
+      padding: 0 !important;
+      background: transparent !important;
+      border-left: 0 !important;
+      border-radius: 0 !important;
+      font-size: 0.92em !important;
+    }
+    .comment_reply > div {
+      min-width: 0 !important;
+      flex: 1 !important;
+    }
+    .comment_reply > img {
+      width: 1.6em !important;
+      height: 1.6em !important;
+      border-radius: 50% !important;
+      flex-shrink: 0 !important;
+      margin: 0.15em 0 0 !important;
+      box-shadow: none !important;
+    }
+    .comment_content img,
+    .comment_area p > img {
+      max-width: 100% !important;
+      height: auto !important;
+      margin: 1.2em auto 0 !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+      display: block !important;
+    }
+    .comment_area p {
+      margin: 0 !important;
+    }
+    .comment_area span {
+      background: transparent !important;
     }
     
     /* 滚动条 */
@@ -481,6 +638,80 @@ const styledHtmlContent = computed(() => {
     }
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(120, 120, 120, 0.4);
+    }
+    @media print {
+      .title {
+        font-size: 20px !important;
+        line-height: 1.3 !important;
+        margin-bottom: 8px !important;
+      }
+      .__meta__ {
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+        margin-bottom: 14px !important;
+      }
+      blockquote.source {
+        margin: 12px 0 16px !important;
+        padding: 6px 8px !important;
+        border-left-width: 3px !important;
+        font-size: 12px !important;
+        line-height: 1.4 !important;
+      }
+      p {
+        margin-top: 0 !important;
+        margin-bottom: 0.75em !important;
+        letter-spacing: 0 !important;
+        text-align: left !important;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        margin-top: 1em !important;
+        margin-bottom: 0.45em !important;
+        line-height: 1.3 !important;
+      }
+      table {
+        display: table !important;
+        overflow: visible !important;
+        margin: 0.8em 0 !important;
+      }
+      th, td {
+        padding: 5px 8px !important;
+      }
+      pre {
+        margin: 0.8em 0 !important;
+        padding: 8px 10px !important;
+      }
+      .comment_area {
+        max-width: none !important;
+        margin-top: 24px !important;
+        padding: 14px 0 0 !important;
+      }
+      .comment_item {
+        margin-top: 12px !important;
+        padding: 0 !important;
+        gap: 8px !important;
+      }
+      .comment_content {
+        margin-top: 2px !important;
+        line-height: 1.45 !important;
+      }
+      .comment_reply {
+        margin-top: 6px !important;
+        padding: 0 !important;
+      }
+      .picture_content .picture_item {
+        margin-bottom: 12px !important;
+      }
+      .picture_item_label {
+        margin-bottom: 0 !important;
+      }
+      .rich_media_content {
+        overflow: visible !important;
+      }
+      .__page_content__ section img {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0.6em auto !important;
+      }
     }
     ${darkOverrides}
   `;
@@ -545,11 +776,40 @@ function openOriginalLink() {
   }
 }
 
+async function printArticle() {
+  if (!rawHtmlContent.value || printing.value) return;
+
+  printing.value = true;
+  try {
+    await printIframe(articleFrameRef.value);
+  } finally {
+    printing.value = false;
+  }
+}
+
+async function renderCurrentArticleHtml() {
+  if (!articleCgiData.value) return;
+
+  const token = ++renderToken;
+  loadingHtml.value = true;
+  try {
+    const normalizedHtml = await renderHTMLFromCgiDataNew(articleCgiData.value, includeComments.value);
+    if (token === renderToken) {
+      rawHtmlContent.value = normalizedHtml;
+    }
+  } finally {
+    if (token === renderToken) {
+      loadingHtml.value = false;
+    }
+  }
+}
+
 // 获取并排布文章正文 HTML
 async function selectArticle(article: ArticleAsset) {
   selectedArticle.value = article;
   loadingHtml.value = true;
   rawHtmlContent.value = '';
+  articleCgiData.value = null;
 
   try {
     const htmlAsset = await getHtmlCache(article.link);
@@ -557,10 +817,8 @@ async function selectArticle(article: ArticleAsset) {
       const rawHtml = await htmlAsset.file.text();
       const cgiData = await parseCgiDataNew(rawHtml);
 
-      const includeComments = Boolean(preferences.value?.exportConfig?.exportHtmlIncludeComments);
-      const normalizedHtml = await renderHTMLFromCgiDataNew(cgiData, includeComments);
-
-      rawHtmlContent.value = normalizedHtml;
+      articleCgiData.value = cgiData;
+      await renderCurrentArticleHtml();
     }
   } catch (err) {
     console.error('[Reader] Failed to load cached html:', err);
@@ -569,10 +827,19 @@ async function selectArticle(article: ArticleAsset) {
   }
 }
 
+watch(includeComments, () => {
+  if (selectedArticle.value && articleCgiData.value) {
+    renderCurrentArticleHtml().catch(err => {
+      console.error('[Reader] Failed to rerender article html:', err);
+    });
+  }
+});
+
 // 监听选中的公众号
 watch(selectedAccount, async newAccount => {
   selectedArticle.value = null;
   rawHtmlContent.value = '';
+  articleCgiData.value = null;
   searchQuery.value = '';
   articles.value = [];
 

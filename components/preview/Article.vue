@@ -1,7 +1,12 @@
 <template>
   <div>
     <USlideover v-model="isOpen" :ui="{ width: 'max-w-[720px]' }">
-      <HtmlRenderer :html="articleHtml" v-model:show="isOpen" />
+      <HtmlRenderer
+        :html="articleHtml"
+        :loading="loadingHtml"
+        v-model:show="isOpen"
+        v-model:include-comments="includeComments"
+      />
     </USlideover>
   </div>
 </template>
@@ -26,26 +31,62 @@ const toast = toastFactory();
 
 const isOpen = ref(false);
 const articleHtml = ref('');
+const articleCgiData = shallowRef<any | null>(null);
+const loadingHtml = ref(false);
+const includeComments = ref(false);
+let renderToken = 0;
 
 async function open(article: AppMsgEx) {
   const htmlAsset = await getHtmlCache(article.link);
   if (htmlAsset) {
     isOpen.value = true;
-    const rawHtml = await htmlAsset.file.text();
-    const cgiData = await parseCgiDataNew(rawHtml);
-    console.log(cgiData);
+    loadingHtml.value = true;
+    articleHtml.value = '';
+    articleCgiData.value = null;
+    includeComments.value = Boolean((preferences.value as Preferences).exportConfig.exportHtmlIncludeComments);
 
-    // articleHtml.value = await normalizeHtmlForPreview(htmlAsset, rawHtml);
-    articleHtml.value = await renderHTMLFromCgiDataNew(
-      cgiData,
-      (preferences.value as Preferences).exportConfig.exportHtmlIncludeComments
-    );
+    try {
+      const rawHtml = await htmlAsset.file.text();
+      const cgiData = await parseCgiDataNew(rawHtml);
+      articleCgiData.value = cgiData;
+      console.log(cgiData);
+
+      // articleHtml.value = await normalizeHtmlForPreview(htmlAsset, rawHtml);
+      await renderArticleHtml();
+    } finally {
+      loadingHtml.value = false;
+    }
   } else {
     toast.warning('文章预览失败', `文章【${article.title}】还未拉取文章内容`);
   }
 }
 
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
+
+async function renderArticleHtml() {
+  if (!articleCgiData.value) return;
+
+  const token = ++renderToken;
+  loadingHtml.value = true;
+  try {
+    const normalizedHtml = await renderHTMLFromCgiDataNew(articleCgiData.value, includeComments.value);
+    if (token === renderToken) {
+      articleHtml.value = normalizedHtml;
+    }
+  } finally {
+    if (token === renderToken) {
+      loadingHtml.value = false;
+    }
+  }
+}
+
+watch(includeComments, () => {
+  if (!isOpen.value || !articleCgiData.value) return;
+
+  renderArticleHtml().catch(err => {
+    console.error('[Preview] Failed to rerender article html:', err);
+  });
+});
 
 // 调整最终的 html
 async function normalizeHtmlForPreview(cachedHtml: HtmlAsset, html: string): Promise<string> {
