@@ -252,10 +252,10 @@
           </client-only>
 
           <!-- 悬浮继续阅读提示栏 -->
-          <Transition name="slide-up">
+          <Transition name="slide-down">
             <div
               v-if="showResumeBanner"
-              class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl backdrop-blur-md bg-opacity-95 dark:bg-opacity-95"
+              class="absolute top-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl backdrop-blur-md bg-opacity-95 dark:bg-opacity-95"
             >
               <UIcon name="i-heroicons-bookmark" class="size-4 text-primary-500 animate-pulse" />
               <span class="text-xs text-slate-600 dark:text-slate-300">
@@ -1083,14 +1083,14 @@ onMounted(async () => {
   background: rgba(150, 150, 150, 0.3);
 }
 
-/* slide-up 动画效果 */
-.slide-up-enter-active,
-.slide-up-leave-active {
+/* slide-down 动画效果 */
+.slide-down-enter-active,
+.slide-down-leave-active {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.slide-up-enter-from,
-.slide-up-leave-to {
-  transform: translate(-50%, 1rem) scale(0.95);
+.slide-down-enter-from,
+.slide-down-leave-to {
+  transform: translate(-50%, -1rem) scale(0.95);
   opacity: 0;
 }
 </style>
