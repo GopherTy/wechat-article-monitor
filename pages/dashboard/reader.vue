@@ -383,9 +383,17 @@ function onIframeLoad() {
     if (scrollTimeout) clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
       if (!selectedArticle.value || !win || !doc) return;
-      const currentScroll = win.scrollY || doc.documentElement.scrollTop;
-      const scrollHeight = doc.documentElement.scrollHeight;
-      const clientHeight = doc.documentElement.clientHeight;
+
+      // 移动端兼容性取值：优先使用 Math.max 确保在各类浏览器及微信下都能获取真实滚动距离
+      const currentScroll = Math.max(
+        win.scrollY || 0,
+        win.pageYOffset || 0,
+        doc.documentElement.scrollTop || 0,
+        doc.body.scrollTop || 0
+      );
+
+      const clientHeight = win.innerHeight || doc.documentElement.clientHeight || doc.body.clientHeight || 0;
+      const scrollHeight = Math.max(doc.documentElement.scrollHeight || 0, doc.body.scrollHeight || 0);
 
       // 如果提示栏显示中，且用户自己往下滚动了超过 100px，则自动淡出提示栏以防遮挡
       if (showResumeBanner.value && currentScroll > 100) {
@@ -393,8 +401,12 @@ function onIframeLoad() {
       }
 
       const key = `reader_scroll_${selectedArticle.value.aid}`;
-      // 如果接近底部（剩余小于 50px），视为读完，清除进度
-      if (scrollHeight - clientHeight - currentScroll < 50) {
+
+      // 仅当可滚动高度差合理（大于 150px）时，才计算是否接近底部并清除进度；
+      // 否则在某些移动端浏览器下（如 iframe 被拉展导致 clientHeight === scrollHeight）会产生误判而误删进度。
+      const isNearBottom = scrollHeight - clientHeight > 150 && scrollHeight - clientHeight - currentScroll < 80;
+
+      if (isNearBottom) {
         if (localStorage.getItem(key)) {
           localStorage.removeItem(key);
           articleProgressMap.value[selectedArticle.value.aid] = false;
@@ -411,7 +423,9 @@ function onIframeLoad() {
     }, 150);
   };
 
-  win.addEventListener('scroll', handleScroll);
+  // 同时监听 iframe 的 window 与 document 上的滚动，以防在某些手机端排版引擎下无法捕获
+  win.addEventListener('scroll', handleScroll, { passive: true });
+  doc.addEventListener('scroll', handleScroll, { passive: true });
 }
 
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
