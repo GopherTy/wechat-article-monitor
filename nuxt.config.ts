@@ -1,12 +1,18 @@
 import { fileURLToPath } from 'node:url';
 
+const modules = ['@vueuse/nuxt', '@nuxt/ui', 'nuxt-monaco-editor', '@sentry/nuxt/module'];
+
+if (process.env.NUXT_UMAMI_ID && process.env.NUXT_UMAMI_HOST) {
+  modules.push('nuxt-umami');
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-30',
   devtools: {
     enabled: false,
   },
-  modules: ['@vueuse/nuxt', '@nuxt/ui', 'nuxt-monaco-editor', '@sentry/nuxt/module', 'nuxt-umami'],
+  modules,
   ssr: false,
   runtimeConfig: {
     public: {
