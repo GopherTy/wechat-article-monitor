@@ -86,7 +86,7 @@ export default defineNuxtConfig({
 
   // https://umami.nuxt.dev/api/configuration
   umami: {
-    enabled: true,
+    enabled: !!(process.env.NUXT_UMAMI_ID && process.env.NUXT_UMAMI_HOST),
     id: process.env.NUXT_UMAMI_ID,
     host: process.env.NUXT_UMAMI_HOST,
     domains: ['down.mptext.top'],

@@ -75,9 +75,18 @@
           <span class="text-xs font-semibold line-clamp-2 leading-relaxed" :class="selectedArticle?.aid === article.aid ? 'text-primary-700 dark:text-primary-400' : 'group-hover:text-primary-600 dark:group-hover:text-primary-400'">
             {{ article.title }}
           </span>
-          <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-            {{ formatDate(article.create_time) }}
-          </span>
+          <div class="flex items-center justify-between w-full">
+            <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+              {{ formatDate(article.create_time) }}
+            </span>
+            <span
+              v-if="articleProgressMap[article.aid]"
+              class="text-[10px] text-primary-500 dark:text-primary-400 flex items-center gap-0.5 font-medium transition-all"
+            >
+              <UIcon name="i-heroicons-bookmark" class="size-3" />
+              <span>继续阅读</span>
+            </span>
+          </div>
         </button>
       </div>
     </div>
@@ -113,7 +122,7 @@
               variant="ghost"
               size="sm"
               class="md:hidden mr-1"
-              @click="selectedArticle = null"
+              @click="closeArticle"
             >
               <span class="hidden xs:inline">返回</span>
             </UButton>
@@ -238,8 +247,37 @@
               class="border-none w-full h-full"
               referrerpolicy="no-referrer"
               :srcdoc="styledHtmlContent"
+              @load="onIframeLoad"
             ></iframe>
           </client-only>
+
+          <!-- 悬浮继续阅读提示栏 -->
+          <Transition name="slide-up">
+            <div
+              v-if="showResumeBanner"
+              class="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl backdrop-blur-md bg-opacity-95 dark:bg-opacity-95"
+            >
+              <UIcon name="i-heroicons-bookmark" class="size-4 text-primary-500 animate-pulse" />
+              <span class="text-xs text-slate-600 dark:text-slate-300">
+                检测到您上次有未读完的内容
+              </span>
+              <button
+                type="button"
+                class="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 underline underline-offset-2"
+                @click="jumpToSavedPosition"
+              >
+                点击跳转
+              </button>
+              <div class="w-px h-3 bg-slate-200 dark:bg-slate-800 mx-1" />
+              <button
+                type="button"
+                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center"
+                @click="showResumeBanner = false"
+              >
+                <UIcon name="i-heroicons-x-mark" class="size-4" />
+              </button>
+            </div>
+          </Transition>
         </div>
       </template>
     </div>
@@ -251,6 +289,7 @@ import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import { parseCgiDataNew } from '#shared/utils/html';
 import { renderHTMLFromCgiDataNew } from '#shared/utils/renderer';
+import toastFactory from '~/composables/toast';
 import usePreferences from '~/composables/usePreferences';
 import { IMAGE_PROXY } from '~/config';
 import { type ArticleAsset, getArticleCache } from '~/store/v2/article';
@@ -275,6 +314,106 @@ const articleFrameRef = ref<HTMLIFrameElement | null>(null);
 const articleCgiData = shallowRef<any | null>(null);
 const printing = ref(false);
 
+const toast = toastFactory();
+const showResumeBanner = ref(false);
+const savedScrollPosition = ref<number | null>(null);
+const articleProgressMap = ref<Record<string, boolean>>({});
+
+function jumpToSavedPosition() {
+  const iframe = articleFrameRef.value;
+  if (!iframe || savedScrollPosition.value === null) return;
+  const win = iframe.contentWindow;
+  if (!win) return;
+
+  const scrollPos = savedScrollPosition.value;
+  win.scrollTo(0, scrollPos);
+  requestAnimationFrame(() => {
+    if (win) win.scrollTo(0, scrollPos);
+  });
+  setTimeout(() => {
+    if (win) win.scrollTo(0, scrollPos);
+  }, 50);
+
+  toast.success('已恢复至上次阅读位置');
+  showResumeBanner.value = false;
+}
+
+// 更新 localStorage 中的阅读进度映射
+function updateProgressMap() {
+  const map: Record<string, boolean> = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('reader_scroll_')) {
+      const aid = key.replace('reader_scroll_', '');
+      map[aid] = true;
+    }
+  }
+  articleProgressMap.value = map;
+}
+
+// 监听 iframe 加载事件，恢复阅读位置并绑定滚动事件
+function onIframeLoad() {
+  const iframe = articleFrameRef.value;
+  if (!iframe || !selectedArticle.value) return;
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  const win = iframe.contentWindow;
+  if (!doc || !win) return;
+
+  // 检查是否存在上次未读完的进度，显示跳转提示栏
+  const key = `reader_scroll_${selectedArticle.value.aid}`;
+  const savedScroll = localStorage.getItem(key);
+  if (savedScroll) {
+    const scrollPos = parseFloat(savedScroll);
+    if (!isNaN(scrollPos) && scrollPos > 5) {
+      savedScrollPosition.value = scrollPos;
+      showResumeBanner.value = true;
+    } else {
+      showResumeBanner.value = false;
+      savedScrollPosition.value = null;
+    }
+  } else {
+    showResumeBanner.value = false;
+    savedScrollPosition.value = null;
+  }
+
+  // 注册滚动监听并进行防抖缓存
+  let scrollTimeout: any = null;
+  const handleScroll = () => {
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      if (!selectedArticle.value || !win || !doc) return;
+      const currentScroll = win.scrollY || doc.documentElement.scrollTop;
+      const scrollHeight = doc.documentElement.scrollHeight;
+      const clientHeight = doc.documentElement.clientHeight;
+
+      // 如果提示栏显示中，且用户自己往下滚动了超过 100px，则自动淡出提示栏以防遮挡
+      if (showResumeBanner.value && currentScroll > 100) {
+        showResumeBanner.value = false;
+      }
+
+      const key = `reader_scroll_${selectedArticle.value.aid}`;
+      // 如果接近底部（剩余小于 50px），视为读完，清除进度
+      if (scrollHeight - clientHeight - currentScroll < 50) {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          articleProgressMap.value[selectedArticle.value.aid] = false;
+        }
+      } else if (currentScroll > 15) {
+        localStorage.setItem(key, currentScroll.toString());
+        articleProgressMap.value[selectedArticle.value.aid] = true;
+      } else {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          articleProgressMap.value[selectedArticle.value.aid] = false;
+        }
+      }
+    }, 150);
+  };
+
+  win.addEventListener('scroll', handleScroll);
+}
+
 const preferences: Ref<Preferences> = usePreferences() as unknown as Ref<Preferences>;
 const includeComments = ref(Boolean(preferences.value?.exportConfig?.exportHtmlIncludeComments));
 let renderToken = 0;
@@ -283,7 +422,7 @@ const themes = [
   { id: 'light', name: '清爽纸白', bg: '#ffffff', text: '#2d3748', border: '#e2e8f0', frameBg: '#f7fafc' },
   { id: 'sepia', name: '复古麦香', bg: '#faf4e8', text: '#3c3022', border: '#e5d9c5', frameBg: '#f3e8d3' },
   { id: 'green', name: '柔和护眼', bg: '#e8f5e9', text: '#1b3f20', border: '#c8e6c9', frameBg: '#daebd8' },
-  { id: 'dark', name: '沉静暗黑', bg: '#161616', text: '#d1d5db', border: '#2d2d2d', frameBg: '#0f0f0f' },
+  { id: 'dark', name: '沉静暗黑', bg: '#121212', text: '#9ca3af', border: '#2d2d2d', frameBg: '#0d0d0d' },
 ];
 
 const currentThemeObj = computed(() => {
@@ -327,11 +466,14 @@ const styledHtmlContent = computed(() => {
       --weui-BG-5: ${themeObj.bg} !important;
     }
     /* 极致保险：针对文章内部可能存在的直接行内元素强力拦截 */
-    span, p, strong, section, h1, h2, h3, h4, h5, h6, font {
+    span, p, section, font {
       color: ${themeObj.text} !important;
     }
+    strong, h1, h2, h3, h4, h5, h6 {
+      color: #e2e8f0 !important;
+    }
     html a, body a, html a *, body a * {
-      color: #3b82f6 !important;
+      color: #60a5fa !important;
     }
     .comment_title,
     .comment_author,
@@ -453,13 +595,17 @@ const styledHtmlContent = computed(() => {
       color: #3b82f6 !important;
       text-decoration: underline !important;
     }
+    strong {
+      color: ${isDark ? '#e2e8f0' : '#111827'} !important;
+      font-weight: 700 !important;
+    }
     /* 标题排版设计 */
     h1, h2, h3, h4, h5, h6 {
       font-weight: 700 !important;
       line-height: 1.4 !important;
       margin-top: 1.8em !important;
       margin-bottom: 0.8em !important;
-      color: ${isDark ? '#f3f4f6' : '#111827'} !important;
+      color: ${isDark ? '#e2e8f0' : '#111827'} !important;
     }
     h1 { font-size: 1.5em !important; }
     h2 { 
@@ -716,10 +862,11 @@ const styledHtmlContent = computed(() => {
     ${darkOverrides}
   `;
 
+  const metaColorScheme = `<meta name="color-scheme" content="${isDark ? 'dark' : 'light'}">`;
   if (cleanHtml.includes('</head>')) {
-    return cleanHtml.replace('</head>', `<style>${themeStyles}</style></head>`);
+    return cleanHtml.replace('</head>', `${metaColorScheme}<style>${themeStyles}</style></head>`);
   } else {
-    return `<style>${themeStyles}</style>${cleanHtml}`;
+    return `${metaColorScheme}<style>${themeStyles}</style>${cleanHtml}`;
   }
 });
 
@@ -810,6 +957,12 @@ async function selectArticle(article: ArticleAsset) {
   loadingHtml.value = true;
   rawHtmlContent.value = '';
   articleCgiData.value = null;
+  showResumeBanner.value = false;
+  savedScrollPosition.value = null;
+
+  if (article) {
+    localStorage.setItem('reader_last_article', article.aid);
+  }
 
   try {
     const htmlAsset = await getHtmlCache(article.link);
@@ -825,6 +978,11 @@ async function selectArticle(article: ArticleAsset) {
   } finally {
     loadingHtml.value = false;
   }
+}
+
+function closeArticle() {
+  selectedArticle.value = null;
+  localStorage.removeItem('reader_last_article');
 }
 
 watch(includeComments, () => {
@@ -844,27 +1002,50 @@ watch(selectedAccount, async newAccount => {
   articles.value = [];
 
   if (newAccount) {
+    // 记忆上次选中的公众号
+    localStorage.setItem('reader_last_account', newAccount.fakeid);
+
     loadingArticles.value = true;
     try {
       // 传入 0 以获取该账号所有的缓存文章列表
       const list = await getArticleCache(newAccount.fakeid, 0);
       articles.value = list.sort((a, b) => b.create_time - a.create_time);
+
+      // 自动恢复上次选中的文章
+      const lastArticleAid = localStorage.getItem('reader_last_article');
+      if (lastArticleAid) {
+        const foundArticle = articles.value.find(item => item.aid === lastArticleAid);
+        if (foundArticle) {
+          // 自动加载该文章
+          await selectArticle(foundArticle);
+        }
+      }
     } catch (err) {
       console.error('[Reader] Failed to fetch article cache:', err);
     } finally {
       loadingArticles.value = false;
     }
+  } else {
+    localStorage.removeItem('reader_last_account');
   }
 });
 
 onMounted(async () => {
+  updateProgressMap();
   try {
     const list = await getAllInfo();
     // 排除特殊的单篇临时缓存
     accounts.value = list.filter(item => item.fakeid !== 'SINGLE_ARTICLE_FAKEID');
 
     if (accounts.value.length > 0) {
-      selectedAccount.value = accounts.value[0];
+      // 恢复上次选中的公众号，若没有则默认选中第一个
+      const lastAccountFakeid = localStorage.getItem('reader_last_account');
+      const foundAccount = accounts.value.find(item => item.fakeid === lastAccountFakeid);
+      if (foundAccount) {
+        selectedAccount.value = foundAccount;
+      } else {
+        selectedAccount.value = accounts.value[0];
+      }
     }
   } catch (err) {
     console.error('[Reader] Failed to initialize reader:', err);
@@ -886,5 +1067,16 @@ onMounted(async () => {
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(150, 150, 150, 0.3);
+}
+
+/* slide-up 动画效果 */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translate(-50%, 1rem) scale(0.95);
+  opacity: 0;
 }
 </style>
